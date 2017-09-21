@@ -8,20 +8,24 @@
 
 /* Begin PBXBuildFile section */
 		2FACC4301F73D6D300B9C97E /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FACC42F1F73D6D300B9C97E /* AppDelegate.swift */; };
-		2FACC4321F73D6D300B9C97E /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FACC4311F73D6D300B9C97E /* ViewController.swift */; };
 		2FACC4351F73D6D300B9C97E /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 2FACC4331F73D6D300B9C97E /* Main.storyboard */; };
 		2FACC4371F73D6D400B9C97E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2FACC4361F73D6D400B9C97E /* Assets.xcassets */; };
 		2FACC43A1F73D6D400B9C97E /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 2FACC4381F73D6D400B9C97E /* LaunchScreen.storyboard */; };
+		2FACC4421F73D71700B9C97E /* TableViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FACC4411F73D71700B9C97E /* TableViewController.swift */; };
+		2FACC4441F73D8B200B9C97E /* TableViewInputCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FACC4431F73D8B200B9C97E /* TableViewInputCell.swift */; };
+		2FACC4461F73DB2400B9C97E /* TodoModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FACC4451F73DB2400B9C97E /* TodoModel.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		2FACC42C1F73D6D300B9C97E /* TodoDemo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TodoDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2FACC42F1F73D6D300B9C97E /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
-		2FACC4311F73D6D300B9C97E /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
 		2FACC4341F73D6D300B9C97E /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/Main.storyboard; sourceTree = "<group>"; };
 		2FACC4361F73D6D400B9C97E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		2FACC4391F73D6D400B9C97E /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		2FACC43B1F73D6D400B9C97E /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		2FACC4411F73D71700B9C97E /* TableViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TableViewController.swift; sourceTree = "<group>"; };
+		2FACC4431F73D8B200B9C97E /* TableViewInputCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TableViewInputCell.swift; sourceTree = "<group>"; };
+		2FACC4451F73DB2400B9C97E /* TodoModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodoModel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -55,7 +59,9 @@
 			isa = PBXGroup;
 			children = (
 				2FACC42F1F73D6D300B9C97E /* AppDelegate.swift */,
-				2FACC4311F73D6D300B9C97E /* ViewController.swift */,
+				2FACC4411F73D71700B9C97E /* TableViewController.swift */,
+				2FACC4431F73D8B200B9C97E /* TableViewInputCell.swift */,
+				2FACC4451F73DB2400B9C97E /* TodoModel.swift */,
 				2FACC4331F73D6D300B9C97E /* Main.storyboard */,
 				2FACC4361F73D6D400B9C97E /* Assets.xcassets */,
 				2FACC4381F73D6D400B9C97E /* LaunchScreen.storyboard */,
@@ -136,8 +142,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				2FACC4321F73D6D300B9C97E /* ViewController.swift in Sources */,
+				2FACC4441F73D8B200B9C97E /* TableViewInputCell.swift in Sources */,
+				2FACC4461F73DB2400B9C97E /* TodoModel.swift in Sources */,
 				2FACC4301F73D6D300B9C97E /* AppDelegate.swift in Sources */,
+				2FACC4421F73D71700B9C97E /* TableViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
