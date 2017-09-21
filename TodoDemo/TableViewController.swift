@@ -43,7 +43,7 @@ class TableViewController: UITableViewController{
     override func viewDidLoad() {
         
         super.viewDidLoad()
-        
+        navigationItem.rightBarButtonItem?.isEnabled = false
         TodoModel.shared.getTodoItems { (array) in
             //调用self.state同时didSet会调用
             self.state = State(todos: array + self.state.todos, text: self.state.text)
