@@ -7,97 +7,111 @@
 //
 
 import UIKit
+
 let inputCellReuseId = "inputCellId"
 let todoCellReuseId = "todoCellId"
 
 class TableViewController: UITableViewController{
-    //和UI相关的model进行简单的封装,统一按照状态更新UI
-    struct State {
-        let todos :[String]
-        let text : String
+    
+    struct State:StateType {
+        var dataSource = TableViewDataSource(todos: [], owner: nil)
+        var text : String = ""
+    }
+    
+    enum Action:ActionType {
+        case updateText(text:String)
+        case addToDos(items:[String])
+        case removeToDo(index:Int)
+        case loadToDos
+    }
+    
+    enum Command:CommandType{
+        
+        case loadToDos(completion:([String])->Void)
+        case someOtherCommand
+        
     }
 
-    var state  = State(todos: [], text: ""){
-        didSet{
-            if oldValue.todos != state.todos {
-            //在didSet方法里含有oldValue属性,前后不一致就更新tableVIew
-                tableView.reloadData()
-                 title = "Todo - (\(state.todos.count))"
-            }
-            if oldValue.text != state.text {
-                let isItemLengthEnough = state.text.count >= 3
-                navigationItem.rightBarButtonItem?.isEnabled = isItemLengthEnough
-                
-                let inputIndexPath = IndexPath(row: 0, section: Section.input.rawValue)
-                let inputCell = tableView.cellForRow(at: inputIndexPath) as? TableViewInputCell
-                inputCell?.textfield.text = state.text
-            }
+    lazy var reducer:(State, Action) -> (state: State , command: Command?) = {
+        [weak self] (state : State, action : Action) in
+
+        var state = state
+        var command :Command? = nil
+        
+        switch action {
+        case .updateText(let text):
+            state.text = text
+        case .addToDos(let items):
+            state.dataSource = TableViewDataSource(todos: items + state.dataSource.todos, owner: state.dataSource.owner)
+        case .removeToDo(let index):
+            let oldTodos = state.dataSource.todos
+            state.dataSource = TableViewDataSource(todos: Array(oldTodos[..<index]+oldTodos[(index + 1)...]), owner: state.dataSource.owner)
+        case .loadToDos:
+            //加载TodoModel的数据源
+            command = Command.loadToDos{self?.store.dispatch(.addToDos(items: $0))}
         }
+        return(state,command)
     }
-    enum Section:Int {
-        case input = 0,todos,max
-    }
-    //数据源数组
-    //var todos : [String] = []
-    
+
+    var store: Store<Action,State,Command>!
+
     override func viewDidLoad() {
         
         super.viewDidLoad()
         navigationItem.rightBarButtonItem?.isEnabled = false
-        TodoModel.shared.getTodoItems { (array) in
-            //调用self.state同时didSet会调用
-            self.state = State(todos: array + self.state.todos, text: self.state.text)
-        }
-    }
-
-    // MARK: - Table view data source
-    override func numberOfSections(in tableView: UITableView) -> Int {
-      
-        return Section.max.rawValue
-    }
-
-    override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        guard let section = Section(rawValue: section) else{
-            fatalError()
-        }
-        switch section {
-        case .input:  return 1
-        case .todos:  return state.todos.count
-        case .max:    fatalError()
-        }
-    }
-
-    override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        guard let section =  Section(rawValue: indexPath.section) else {
-             fatalError()
-        }
-        switch section {
-        case .input:
-            let cell = tableView.dequeueReusableCell(withIdentifier: inputCellReuseId, for: indexPath ) as! TableViewInputCell
-            cell.delegate = self
-            return cell
-        case .todos:
-            let cell = tableView.dequeueReusableCell(withIdentifier: todoCellReuseId, for: indexPath)
-            cell.textLabel?.text = state.todos[indexPath.row]
-            return cell
-        default:
-            fatalError()
-        }
-    }
-
-    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         
-        guard indexPath.section == Section.todos.rawValue else {
+        let dataSource = TableViewDataSource(todos: [], owner: self)
+      
+        store = Store<Action,State,Command>(reducer: reducer, initialState: State(dataSource: dataSource, text: ""))
+        // 订阅 store
+        store.subscribe { [weak self]state, previousState, command in
+            //每次dispatch得到新的状态都会通知订阅者,订阅者内部调用statedidchanged方法
+            self?.stateDidChanged(state: state, previousState: previousState, command: command)
+        }
+        stateDidChanged(state: store.state, previousState: nil, command: nil)
+        store.dispatch(.loadToDos)
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            self.dismiss(animated: true, completion: nil)
+        }
+    }
+    // 初始化 UI
+    func stateDidChanged(state:State,previousState:State?,command:Command?) {
+        if let command = command {
+            switch command{
+            case .loadToDos(let handler):
+                TodoModel.shared.getTodoItems(completionhandler:handler)
+            case .someOtherCommand:
+                //placeHolder command.
+                break
+            }
+        }
+        if previousState == nil || previousState!.dataSource.todos != state.dataSource.todos {
+            let dataSource = state.dataSource
+            tableView.dataSource = dataSource
+            tableView.reloadData()
+        }
+        if previousState == nil || previousState!.text != state.text {
+            let isItemLengthEnough = state.text.count >= 3
+            navigationItem.rightBarButtonItem?.isEnabled = isItemLengthEnough
+            
+            let inputIndexPath = IndexPath(row: 0, section: TableViewDataSource.Section.input.rawValue)
+       
+            let inputCell = tableView.cellForRow(at: inputIndexPath) as? TableViewInputCell
+            inputCell?.textfield.text = state.text
+        }
+    }
+    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        guard indexPath.section == TableViewDataSource.Section.todos.rawValue else {
             return
         }
-        //抛出点击的cell重新组建数组
-        let newTodos = Array(state.todos[..<indexPath.row]+state.todos[(indexPath.row+1)...])
-        state = State(todos: newTodos, text: state.text)
+        // 开始异步加载 ToDos
+        store.dispatch(.removeToDo(index: indexPath.row))
     }
     
     @IBAction func addTodoItem(_ sender: UIBarButtonItem) {
-        
-      state = State(todos: [state.text] + state.todos, text: "")
+        store.dispatch(.addToDos(items: [store.state.text]))
+        store.dispatch(.updateText(text: ""))
     }
     
 }
@@ -105,6 +119,6 @@ class TableViewController: UITableViewController{
 extension TableViewController:TalbleViewInputCellDelegate{
     
     func inputValueChanged(cell: TableViewInputCell, text: String) {
-       state = State(todos: state.todos, text: text)
+      store.dispatch(.updateText(text: text))
     }
 }
