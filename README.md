@@ -1,5 +1,11 @@
 ## Functional Programming
 
+Demo共三个分支:
+
+- master:最基本的编程方式
+- basic1:集中UI数据,统一处理,易于测试
+- reduce:在basic1基础上,实现单向数据流,完整状态变更覆盖测试
+
 ![](https://ws1.sinaimg.cn/large/006tKfTcgy1fjs0fvb71bj31e40ncmze.jpg)
 
 简单的函数就是给定一个变量和改变变量的参数,得出一个新的变量 例如: y = x + a;
