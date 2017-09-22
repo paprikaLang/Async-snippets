@@ -37,7 +37,7 @@ class TableViewController: UITableViewController{
 
         var state = state
         var command :Command? = nil
-        
+        //将用户操作抽象为action,并将所有的状态更新集中处理了
         switch action {
         case .updateText(let text):
             state.text = text
@@ -59,11 +59,11 @@ class TableViewController: UITableViewController{
         
         super.viewDidLoad()
         navigationItem.rightBarButtonItem?.isEnabled = false
-        
+        //此时DataSource为nil
         let dataSource = TableViewDataSource(todos: [], owner: self)
-      
+        //store中存储了reducer的变化,还有订阅reducer的方法subscribe,否则没法得知数据的变化,所以这里要订阅store,实际是订阅reducer,为了监听数据的更改.
         store = Store<Action,State,Command>(reducer: reducer, initialState: State(dataSource: dataSource, text: ""))
-        // 订阅 store
+        // 订阅 store,为了拿到新旧状态在比较中(如果更新数据)相应地去改变View
         store.subscribe { [weak self]state, previousState, command in
             //每次dispatch得到新的状态都会通知订阅者,订阅者内部调用statedidchanged方法
             self?.stateDidChanged(state: state, previousState: previousState, command: command)
@@ -75,7 +75,7 @@ class TableViewController: UITableViewController{
             self.dismiss(animated: true, completion: nil)
         }
     }
-    // 初始化 UI
+    // 改变 UI
     func stateDidChanged(state:State,previousState:State?,command:Command?) {
         if let command = command {
             switch command{
@@ -105,7 +105,9 @@ class TableViewController: UITableViewController{
         guard indexPath.section == TableViewDataSource.Section.todos.rawValue else {
             return
         }
-        // 开始异步加载 ToDos
+        //1.用户操作导致state改变(传给dispatch action 返回新的state)
+        //2.订阅者订阅前后的状态变化,并在内部调用statedidchange方法.
+        //3.在statedidchange里对比前后state的变化更改View
         store.dispatch(.removeToDo(index: indexPath.row))
     }
     

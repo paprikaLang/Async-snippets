@@ -33,7 +33,7 @@ class Store<A:ActionType,S:StateType,C:CommandType> {
     //通过 dispatch 向store 发送 Action
     func dispatch(_ action:A){
         let previousState = state
-        //返回元组,经过函数计算返回新的状态
+        //返回元组,经过函数计算,action 作用于state 返回新的状态
         let (nextState,command) = reducer(state, action)
         state = nextState
         //订阅者获取新的状态
