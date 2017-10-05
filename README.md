@@ -14,9 +14,6 @@ Demo暂四个分支,三个iOS端demo:
 
 对于上面的单向数据流程图,stateDidChanged是一个典型的纯函数式的UI更新方法,reducer同样是,它们非常易于测试,不用关心controller,只需要知道前后两个state就可维护controller了.
 
-函数式编程保证了数据单向流动和完整的状态变更覆盖测试,对于学习RxSwift和前端React,Vuex等都是很有帮助的
-
-
 - vuex:Vuex 是一个专为 Vue.js 应用程序开发的状态管理模式。它采用集中式存储管理应用的所有组件的状态，并以相应的规则保证状态以一种可预测的方式发生变化.
 
 
