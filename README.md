@@ -20,6 +20,7 @@ f()
 ```
 
 @decorator 语法糖的作用和AOP埋点类似.而原理如上所示:
+
 1.接收一个函数作为参数
 2.嵌套一个包装函数, 包装函数会接收原函数的相同参数，并执行原函数，且还会执行附加功能
 3.返回嵌套函数
@@ -64,35 +65,37 @@ IEnumerator（Pull）:                    () -> Event
 IEnumerable（Pull driven stream）:      () -> (() -> Event)
 IObserver  （Push）:                    Event -> ()
 IObserable （Push driven stream）:      (Event -> ()) -> ()
-
 ```
 
-```
-The IObservable will notify all the observers automatically of any state changes. The PUSH model implemented by Rx is represented by the observable pattern of IObservable<T>/IObserver<T> which is similar to HOT signals in RAC.
-```
 
-```
-The PULL model implemented by Rx is represented by the iterator pattern of IEnumerable<T>/IEnumerator<T> which is similar to COLD signals in RAC. The IEnumerable<T> interface exposes a single method GetEnumerator() which returns an IEnumerator<T> to iterate through this collection.
-```
+The PUSH model implemented by Rx is represented by the observable pattern of IObservable<T>/IObserver<T> which is similar to **HOT** signals in RAC.
+
+The IObservable will notify all the observers automatically of any state changes. 
+
+The PULL model implemented by Rx is represented by the iterator pattern of IEnumerable<T>/IEnumerator<T> which is similar to **COLD** signals in RAC. 
+
+The IEnumerable<T> interface exposes a single method GetEnumerator() which returns an IEnumerator<T> to iterate through this collection.
+
 
 ### 测试
 
 
-函数响应式编写的应用在测试时能很好地利用VM和VC之间的绑定关系,专注于VM;
-下面看看喵神对于 Event -> () 的纯函数式改造,并对比两者测试时的不同:
+以函数响应式编写的应用在测试时能很好地利用VM和VC之间的绑定关系,专注于VM进行测试;
+下面看看喵神对于 Event -> () 的纯函数式改造,并对比两者测试的不同:
 
-- master: 最基本的编程方式
-- basic1: 集中UI数据,统一处理,易于测试
+- master: 最原始的编程方式
+- basic1: 集中UI数据,统一处理
 - reduce: 在basic1基础上,实现单向数据流
 
 ![](https://ws1.sinaimg.cn/large/006tKfTcgy1fjs0fvb71bj31e40ncmze.jpg)
 
 ```
-    func reducer(state: State, userAction: Action) -> (State, Command?) //纯函数
+    //纯函数
+    func reducer(state: State, userAction: Action) -> (State, Command?) 
 ```
 
 ```
-//所有在VC中抽象的用户行为都统一指向了state的value变化,测试时只需要关注reducer前后的状态变化
+    //所有在VC中抽象的用户行为都统一指向了state的value变化,测试时只需要关注reducer前后的状态变化
     let initState = TableViewController.State()
     let state = controller.reducer(initState, .updateText(text: "123")).state
     XCTAssertEqual(state.text, "123")
