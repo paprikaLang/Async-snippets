@@ -19,15 +19,17 @@ f = decorator(punch)
 f()
 ```
 
-@decorator 语法糖的作用和AOP埋点类似.而原理如上所示:
-
 1.接收一个函数作为参数
+
 2.嵌套一个包装函数, 包装函数会接收原函数的相同参数，并执行原函数，且还会执行附加功能
+
 3.返回嵌套函数
 
-再看下面这段TCZKit的逻辑就很好理解了.
+---- 函数式的编程原理以 @decorator作为语法糖,实现了AOP埋点.
 
-```
+TCZKit这段代码同样实现了上面三个步骤:
+
+```pyt
 //CancelableTask可看成接收Bool类型参数,无返回值的函数类型
 public typealias CancelableTask = (_ cancel: Bool) -> Void
 //work为原函数.
@@ -94,8 +96,8 @@ The IEnumerable<T> interface exposes a single method GetEnumerator() which retur
     func reducer(state: State, userAction: Action) -> (State, Command?) 
 ```
 
-```
-    //所有在VC中抽象的用户行为都统一指向了state的value变化,测试时只需要关注reducer前后的状态变化
+```pyt
+    //所有在VC中抽象的用户行为都统一指向了state的value变化,测试时只需要关注reducer前后的状态
     let initState = TableViewController.State()
     let state = controller.reducer(initState, .updateText(text: "123")).state
     XCTAssertEqual(state.text, "123")
