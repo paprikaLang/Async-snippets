@@ -4,12 +4,10 @@
 
 ```
 import time
-
 def decorator(func):
     def punch():
         print(time.strftime('%Y-%m-%d', time.localtime(time.time())))
         func()
-
     return punch
 
 def punch():
@@ -27,26 +25,20 @@ f()
 
 ---- 函数式的编程原理以 @decorator作为语法糖,实现了AOP埋点.
 
-TCZKit这段代码同样实现了上面三个步骤:
+TCZKit这段用闭包实现的代码同样实现了上面三个步骤:
 
 ```pyt
-//CancelableTask可看成接收Bool类型参数,无返回值的函数类型
 public typealias CancelableTask = (_ cancel: Bool) -> Void
-//work为原函数.
-//finalTask为嵌套函数,执行work同时 附加延迟功能,最后返回
 public func delay(time: TimeInterval, work: @escaping ()->()) -> CancelableTask? {
-    
     var finalTask: CancelableTask?
-    
     let cancelableTask: CancelableTask = { cancel in
         if cancel {
-            finalTask = nil // key
+            finalTask = nil
             
         } else {
             DispatchQueue.main.async(execute: work)
         }
     }
-    
     finalTask = cancelableTask
     
     DispatchQueue.main.asyncAfter(deadline: .now() + time) {
@@ -57,6 +49,85 @@ public func delay(time: TimeInterval, work: @escaping ()->()) -> CancelableTask?
     return finalTask
 }
 ```
+
+### 从闭包的异步回调地狱看 Monad
+
+[Escaping Hell with Monads](https://philipnilsson.github.io/Badness10k/escaping-hell-with-monads/)
+
+要理解Monad先要理解容器.
+
+```
+var array12 :[Int]?   //有无Optional结果大不同
+array12 = [1,2,3]
+var result12 = array12.map ({"No.\($0)"})
+```
+
+在Swift中,array , struct , enum(Optional)...这些都是容器([Int]?类型相当于把数字包裹在了两层容器里), 容器之间的映射靠map和flatMap完成. 对于异步回调其实我们也可以把它放入合理的容器(Promise)中实现 map 和 flapMap 方法,并像  array.map().flatMap()  这样链式的调用.
+
+```
+enum Result<Value>{
+   case Failure(ErrorType)
+   case Success(Value)
+}
+
+struct Async<T> {
+    let trunk:(Result<T>->Void)->Void
+    init(function:(Result<T>->Void)->Void) {
+        trunk = function
+    }
+    func execute(callBack:Result<T>->Void) {
+        trunk(callBack)
+    }
+}
+```
+
+```
+enum Result<Value> {
+   func map<T>(@noescape f: Value throws -> T) rethrows -> Result<T>{
+       return try flatMap {.Success(try f($0))}
+   }
+   func flatMap<T>(@noescape f: Value throws -> Result<T>) rethrows->Result<T>{
+       switch self {
+          case let .Failure(error):
+             return .Failure(error)
+          case let .Success(value):
+             return try f(value)
+       }
+   }
+}
+
+extension Async{
+    func map<U>(f: T throws-> U) -> Async<U> {
+        return flatMap{ .unit(try f($0)) }
+    }
+    func flatMap<U>(f:T throws-> Async<U>) -> Async<U> {
+        return Async<U>{ cont in
+            self.execute{
+                switch $0.map(f){
+                case .Success(let async):
+                    async.execute(cont)
+                case .Failure(let error):
+                    cont(.Failure(error))
+                }
+            }
+        }
+    }
+}
+```
+
+实际上flatMap就是Monad, Promise的then也是Monad,Rx的Observable也有Monad:
+
+```
+  class Promise<T> {
+     func then<U>(body: T->U) -> Promise<U>            //map
+     func then<U>(body: T-> Promise<U>) ->Promise<U>   //flatMap
+  }
+  class Observable<T> {
+     func map<U>(body: T->U) -> Observable<U>      
+     func flatMap<U>(body: T-> Observable<U>) ->Observable<U>   
+  }
+```
+
 
 ### 从.NET框架Reactive Extensions(Rx)的IObservable,IEnumerable看函数响应式编程:
 
