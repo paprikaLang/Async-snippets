@@ -149,12 +149,12 @@ IObserable （Push driven stream）:      (Event -> ()) -> ()
 ```
 
 
-The PUSH model implemented by Rx is represented by the observable pattern of IObservable<T>/IObserver<T> which is similar to RACSequence in RAC.
+The PUSH model implemented by Rx is represented by the observable pattern of IObservable<T>/IObserver<T> which is similar to RACSignal in RAC.
 
 The IObservable will notify all the observers automatically of any state changes. 
 
 
-The PULL model implemented by Rx is represented by the iterator pattern of IEnumerable<T>/IEnumerator<T> which is similar to RACSignal in RAC. 
+The PULL model implemented by Rx is represented by the iterator pattern of IEnumerable<T>/IEnumerator<T> which is similar to RACSequence in RAC. 
 
 The IEnumerable<T> interface exposes a single method GetEnumerator() which returns an IEnumerator<T> to iterate through this collection.
 
