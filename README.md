@@ -159,6 +159,49 @@ The PULL model implemented by Rx is represented by the iterator pattern of IEnum
 The IEnumerable<T> interface exposes a single method GetEnumerator() which returns an IEnumerator<T> to iterate through this collection.
 
 
+```pyt
+final class Observable<A> {
+    //订阅者
+    var callbacks: [(Result<A>) -> ()] = []
+    var cached: Result<A>?
+
+    init(compute: (@escaping (Result<A>) -> ()) -> ()) {
+        compute(self.send)
+    }
+    //多播
+    private func send(_ value: Result<A>) {
+        assert(cached == nil)
+        cached = value
+        for callback in callbacks {
+            callback(value)
+        }
+        callbacks = []
+    }
+    //订阅
+    func onResult(callback: @escaping (Result<A>) -> ()) {
+        if let value = cached {
+            callback(value)
+        } else {
+            callbacks.append(callback)
+        }
+    }
+    
+    func flatMap<B>(transform: @escaping (A) -> Observable<B>) -> Observable<B> {
+        return Observable<B> { completion in
+            self.onResult { result in
+                switch result {
+                case .success(let value):
+                    transform(value).onResult(callback: completion)
+                case .error(let error):
+                    completion(.error(error))
+                }
+            }
+        }
+    }
+}
+```
+
+
 ### 测试
 
 
