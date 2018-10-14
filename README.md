@@ -1,6 +1,5 @@
 #### **从Python的装饰器原理看函数式编程**
 
-
 ```pyt
 import time
 def decorator(func):
@@ -19,7 +18,7 @@ f()
 
 1.接收一个函数(func)作为参数
 
-2.嵌套一个包装函数(punch), 包装函数会接收原函数的相同参数，并执行原函数，且还会插入附加功能(打点)
+2.嵌套一个包装函数(punch), 包装函数接收原函数的参数，执行原函数的同时还会插入附加功能(打点)
 
 3.返回嵌套函数(punch)
 
@@ -47,189 +46,67 @@ public func delay(time: TimeInterval, work: @escaping ()->()) -> CancelableTask?
 }
 ```
 
-#### **从异步回调地狱看 Monad**
+<br>
 
-[[Escaping Hell with Monads]](https://philipnilsson.github.io/Badness10k/escaping-hell-with-monads/)
+#### **从异步回调地狱看 Monad**
 
 要理解 Monad 先要理解容器.
 
 ```Swift
-var array12 :[Int]?  //有无Optional结果大不同
-array12 = [1,2,3]
-var result12 = array12.map ({"No.\($0)"})
+var arr :[Int]?  //有无Optional结果大不同 
+arr = [1,2,3]
+print(arr.map ({"No.\($0)"})) //map 和 flatMap 结果也不同
 ```
 
-在 Swift 中, Array, Struct, Enum(Optional) ... 这些都是容器( [Int]? 相当于把数字包裹在了两层容器里). 
+1. 在 Swift 中, Array, Struct, Enum(Optional) ... 这些都是容器( [Int]? 相当于把数字包裹在了两层容器里). 
 
-容器之间的映射靠 map 和 flatMap 完成. 
+2. 容器之间的映射靠 map 和 flatMap 完成. 
 
-对于 **异步回调** 其实我们也可以把它放入合理的容器(如:Promise)中实现 map 和 flapMap 的链式调用.
+将 **异步回调** 放入合理的容器(如:Promise)中并实现 flapMap 的链式调用, 这样就可以避免异步回调地狱了. 
+[[Escaping Hell with Monads]](https://philipnilsson.github.io/Badness10k/escaping-hell-with-monads/).
 
-```Swift
-enum Result<Value>{
-   case Failure(ErrorType)
-   case Success(Value)}
+<img src="https://paprika-dev.b0.upaiyun.com/jzvVyWwYhcIOEW1np7UpXIUduud74yiZ6GQnytag.jpeg" width="500"/>
 
-struct Async<T> {
-    let trunk:(Result<T>->Void)->Void
-    init(function:(Result<T>->Void)->Void) {
-        trunk = function
-    }
-    func execute(callBack:Result<T>->Void) {
-        trunk(callBack)
-    }}
-```
+实际上 flatMap 就是 Monad, Promise 的 then 也是 Monad .
+<img src="https://paprika-dev.b0.upaiyun.com/dZYxureNahEv33uuOArlf4mv3OGBR6DeVn2ccjin.jpeg" width="500"/>
 
-```Swift
-enum Result<Value> {
- func map<T>(@noescape f: Value throws -> T) rethrows -> Result<T>{
-   return try flatMap {.Success(try f($0))}}
+<br>
 
- func flatMap<T>(@noescape f: Value throws -> Result<T>) rethrows -> Result<T>{
-   switch self {
-      case let .Failure(error):
-        return .Failure(error)
-      case let .Success(value):
-        return try f(value)
-   }}}
-
-extension Async{
-  func map<U>(f: T throws-> U) -> Async<U> {
-    return flatMap{ .unit(try f($0)) }}
-
-  func flatMap<U>(f:T throws-> Async<U>) -> Async<U> {
-    return Async<U>{ cont in
-      self.execute{
-        switch $0.map(f){
-          case .Success(let async):
-            async.execute(cont)
-          case .Failure(let error):
-            cont(.Failure(error))
-        }}}}}
-
-```
-
-实际上 flatMap 就是 Monad, Promise 的 then 也是 Monad, Rx 的 Observable 同样是 Monad :
-
-```Swift
-class Promise<T> {
- func then<U>(body: T->U) -> Promise<U>            //map
- func then<U>(body: T-> Promise<U>) ->Promise<U>   //flatMap
-}
-
-class Observable<T> {
- func map<U>(body: T->U) -> Observable<U>      
- func flatMap<U>(body: T-> Observable<U>) ->Observable<U>   
-}
-```
-
-#### **从 Reactive Extensions(Rx) 的 IObservable, IEnumerable 看 Publish–Subscribe Pattern**
+#### **从 Rx 的 IObservable, IEnumerable 看 Publish–Subscribe Pattern**
 
 [[Pulling vs. Pushing Data]](https://msdn.microsoft.com/en-us/library/hh242985.aspx)
 
-```
-IEnumerator（Pull）:                    () -> Event
-IEnumerable（Pull driven stream）:      () -> (() -> Event)
-IObserver  （Push）:                    Event -> ()
-IObserable （Push driven stream）:      (Event -> ()) -> ()
-```
-
 >The PUSH model implemented by Rx is represented by the observable pattern of IObservable<T>/IObserver<T> which is similar to RACSignal in RAC.
-
 >The IObservable will notify all the observers automatically of any state changes. 
 
 >The PULL model implemented by Rx is represented by the iterator pattern of IEnumerable<T>/IEnumerator<T> which is similar to RACSequence in RAC. 
-
 >The IEnumerable<T> interface exposes a single method GetEnumerator() which returns an IEnumerator<T> to iterate through this collection.
 
-```Swift
-final class Observable<A> {
-  //订阅者
-  var callbacks: [(Result<A>) -> ()] = []
-  var cached: Result<A>?
+参照前面完成的 Async (封装异步的容器), 揉进 Publish–Subscribe Pattern 实现 Observable:
 
-  init(compute: (@escaping (Result<A>) -> ()) -> ()) {
-      compute(self.send)}
-
-  //发送(多播)
-  private func send(_ value: Result<A>) {
-      assert(cached == nil)
-      cached = value
-      for callback in callbacks {
-          callback(value)
-      }
-      callbacks = []
-  }
-  //订阅
-  func onResult(callback: @escaping (Result<A>) -> ()) {
-      if let value = cached {
-          callback(value)
-      } else {
-          callbacks.append(callback)
-      }
-  }
-  
-  func flatMap<B>(transform: @escaping (A) -> Observable<B>) -> Observable<B> {
-    return Observable<B> { completion in
-      self.onResult { result in
-        switch result {
-          case .success(let value):
-            transform(value).onResult(callback: completion)
-          case .error(let error):
-            completion(.error(error))
-        }}}}}
-```
+<img src="https://paprika-dev.b0.upaiyun.com/EkhrOfb6j55xxb7ho5GuFuSp6IB90SUsHLCVdMkV.jpeg" width="500"/>
 
 [[Why every beginner front-end developer should know publish-subscribe pattern?]](https://itnext.io/why-every-beginner-front-end-developer-should-know-publish-subscribe-pattern-72a12cd68d44)
 
->Because No matter what method of solving asynchronous problem will you use, it will be always some variation of the same principle: something subscribes, something publishes.
+文章中说到 **函数** 可以替代 异步回调 被 JavaScript 应用在 subscribe 中.
+
+<img src="https://paprika-dev.b0.upaiyun.com/p2rfJbZHHjHNjAmvkIsfqJKnEKkljjyfGoAySLF6.jpeg" width="500"/>
+
+<img src="https://paprika-dev.b0.upaiyun.com/yNVQO0p9bN0XCygOUr3zxDXVRoV0GBjIAX1XEbc7.jpeg" width="500"/>
+
+不过随着[[上面项目]](https://github.com/hzub/pubsub-demo/)的进展, 组件层级会越来越复杂, 组件间传值变得更加混乱, subscribe 散布在各个角落.
+
+<img src="https://paprika-dev.b0.upaiyun.com/vmw1ArDZaNzX8IihBhPNJFmx5gzZLHlgcaYpa2Mc.jpeg" width="500"/>
+
+<img src="https://paprika-dev.b0.upaiyun.com/JCDD5U3WCuTk0KqQ4wfxwasupRQ1VILd3TOPR8ta.jpeg" width="500"/>
+
+Redux 的 dispatch(action) 会把所有 subscribe 中的函数集中到 reducer.js , 函数(如: renderMarkers)用到的所有参数由 state 统一管理,
+返回的 newState 触发 subscribe(handleStoreChange), 组件更新.
+
+<img src="https://paprika-dev.b0.upaiyun.com/ouzwtruWwEUwId2SJeSXMjsyAXvJd8eLQPob7mDo.jpeg" width="500"/>
 
 
-```JavaScript
-export function subscribe(callbackFunction) {
-  changeListeners.push(callbackFunction);
-}
-
-function publish(data) {
-  changeListeners.forEach((changeListener) => { changeListener(data); });
-}
-
-export function addPlace(latLng) {
-  geocoder.geocode({ 'location': latLng }, function (results) {
-    try {
-      const cityName = results
-        .find(result => result.types.includes('locality'))
-        .address_components[0]
-        .long_name;
-
-      myPlaces.push({ position: latLng, name: cityName });
-
-      publish(myPlaces);
-
-      localStorage.setItem('myPlaces', JSON.stringify(myPlaces));
-    } catch (e) {
-      console.log('No city found in this location! :(');
-    }
-  });
-}
-```
-[[查看 demo ]](https://github.com/hzub/pubsub-demo)
-
->JavaScript is very fancy language — “functions are first-class citizens”. It means that any function can be assigned to a variable or passed as a parameter to another function. 
-
->This characteristic is fundamental in asynchronous scenarios.
-We can define a function that would update our UI — and then pass it to completely another portion of the code, where it will be called.
-
-<img src="https://mmbiz.qpic.cn/mmbiz_png/XIibZ0YbvibkXKEDCRlU9GsNktIiaRZprYJ8dOyWRAhXTNX9y9hIDSzYxuiaQj5lXYxR3yVmiaqF6bphAVIW6IOLwvw/640?wx_fmt=png&wxfrom=5&wx_lazy=1&wx_co=1" width="400"/>
-
->DOM event listeners are nothing more than subscribing to publishing UI actions. Going further: what is a Promise? From certain point of view, it’s just a mechanism that allows us to subscribe for completion of a certain deferred action, then publishes some data when ready.
-
->React state and props change? Components’ updating mechanisms are subscribed to the changes. Websocket’s on()? Fetch API? They allow to subscribe to certain network action. Redux? It allows to subscribe to changes in the store. And RxJS? It’s a shameless one big subscribe pattern.
-
-<img src="https://paprika-dev.b0.upaiyun.com/EivCtaYUlSUPQsEacPEyfv8kiFJUBcQVfikIbdw9.jpeg" width="500"/>
-
-
-喵神的[[单向数据流动的函数式 View Controller]](https://onevcat.com/2017/07/state-based-viewcontroller/) 内在运行的也是一种类似 Redux 的数据集中管理模式.
+喵神的[[单向数据流动的函数式 View Controller]](https://onevcat.com/2017/07/state-based-viewcontroller/) :
 
 ```Swift
 struct State:StateType {
@@ -237,39 +114,14 @@ struct State:StateType {
   var text : String = " "
 }
 ```
+<img src="https://paprika-dev.b0.upaiyun.com/Z8fWmvcwRSUGBjGY0KFv7aWXeYgRwrzK95cyVxib.jpeg" width="500"/>
 
-```Swift
-class Store<A:ActionType,S:StateType,C:CommandType> {
-  let reducer: (_ state:S,_ action:A) -> (S,C?)
-  var subscriber: ((_ state:S,_ previousState:S,_ command:C?) -> Void)?
-  var state: S
-  init(reducer:@escaping (S,A)->(S,C?),initialState:S) {
-      self.reducer = reducer
-      self.state = initialState
-  }
-  //订阅
-  func subscribe(_ handler: @escaping (S,S,C?) -> Void) {
-      //subscriber 的作用其实类似于 OC 的 block 传值
-      self.subscriber = handler
-  }
-  func unsubscribe(){
-      self.subscriber = nil
-  }
-  //发送 
-  func dispatch(_ action:A){
-      let previousState = state
-      let (nextState,command) = reducer(state, action)
-      state = nextState
-      //订阅者获取新的状态
-      subscriber?(state,previousState,command)}}
-```
-
-这样, 所有抽象的用户行为带来的是 reducer 前后 state 的变化.
+测试
 
 ```Swift
 let (nextState,command) = reducer(state, action)
 ```
-测试时以 state 作为断言的依据.
+
 ```Swift
 let initState = TableViewController.State()
 let state = controller.reducer(initState, .updateText(text: "123")).state
@@ -279,5 +131,4 @@ XCTAssertEqual(state.text, "123")
 <img src="https://ws1.sinaimg.cn/large/006tKfTcgy1fjs0fvb71bj31e40ncmze.jpg" width="600"/>
 
 [OC相关单向数据流Demo可参见:Zepo/Reflow](https://github.com/Zepo/Reflow)
-
 

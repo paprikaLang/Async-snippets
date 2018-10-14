@@ -74,16 +74,17 @@ class TableViewController: UITableViewController{
     }
 
     var store: Store<Action,State,Command>!
+    
     var cancelTask: CancelableTask?
     
     override func viewDidLoad() {
         
         super.viewDidLoad()
         
-        self.cancelTask =  delay(time: 12) {
+        self.cancelTask =  delay(time:6) {
             print("-------------cancel-------------")
         }
-        
+
         navigationItem.rightBarButtonItem?.isEnabled = false
         //此时DataSource为nil
         let dataSource = TableViewDataSource(todos: [], owner: self)
@@ -99,7 +100,6 @@ class TableViewController: UITableViewController{
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
             self.dismiss(animated: true, completion: nil)
-           
         }
     }
     // 改变 UI
@@ -141,7 +141,7 @@ class TableViewController: UITableViewController{
     @IBAction func addTodoItem(_ sender: UIBarButtonItem) {
         store.dispatch(.addToDos(items: [store.state.text]))
         store.dispatch(.updateText(text: ""))
-        self.cancelTask!(true)
+        self.cancelTask!(false)
     }
     
 }
