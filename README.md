@@ -1,4 +1,4 @@
-#### 从Python的装饰器原理看函数式编程:
+#### **从Python的装饰器原理看函数式编程**
 
 
 ```pyt
@@ -9,57 +9,52 @@ def decorator(func):
         func()
     return punch
 
-def punch():
-    print('昵称：小明  部门：IT 上班打卡成功')
+def origin():
+    print('昵称：tiyo  部门：IT 打卡成功')
 
-f = decorator(punch)
+f = decorator(origin)
 f()
 ```
+装饰器的原理:
 
-1.接收一个函数作为参数
+1.接收一个函数(func)作为参数
 
-2.嵌套一个包装函数, 包装函数会接收原函数的相同参数，并执行原函数，且还会执行附加功能
+2.嵌套一个包装函数(punch), 包装函数会接收原函数的相同参数，并执行原函数，且还会插入附加功能(打点)
 
-3.返回嵌套函数
-
----- 函数式的编程原理以 @decorator作为语法糖,实现了AOP埋点.
+3.返回嵌套函数(punch)
 
 
-TCZKit这段用闭包实现的代码同样实现了上面三个步骤:
-
+iOS 的 TCZKit 用闭包也实现了上面这三个步骤:
 
 ```Swift
 public typealias CancelableTask = (_ cancel: Bool) -> Void
 public func delay(time: TimeInterval, work: @escaping ()->()) -> CancelableTask? {
-    var finalTask: CancelableTask?
-    let cancelableTask: CancelableTask = { cancel in
-        if cancel {
-            finalTask = nil
-            
-        } else {
-            DispatchQueue.main.async(execute: work)
-        }
+  var finalTask: CancelableTask?
+  let cancelableTask: CancelableTask = { cancel in
+    if cancel {
+      finalTask = nil  
+    } else {
+      DispatchQueue.main.async(execute: work)
     }
-    finalTask = cancelableTask
-    
-    DispatchQueue.main.asyncAfter(deadline: .now() + time) {
-        if let task = finalTask {
-            task(false)
-        }
+  }
+  finalTask = cancelableTask
+  DispatchQueue.main.asyncAfter(deadline: .now() + time) {
+    if let task = finalTask {
+      task(false)
     }
-    return finalTask
+  }
+  return finalTask
 }
 ```
 
-#### 从异步回调地狱看 Monad
-
+#### **从异步回调地狱看 Monad**
 
 [[Escaping Hell with Monads]](https://philipnilsson.github.io/Badness10k/escaping-hell-with-monads/)
 
-要理解Monad先要理解容器.
+要理解 Monad 先要理解容器.
 
 ```Swift
-var array12 :[Int]?   //有无Optional结果大不同
+var array12 :[Int]?  //有无Optional结果大不同
 array12 = [1,2,3]
 var result12 = array12.map ({"No.\($0)"})
 ```
@@ -68,7 +63,7 @@ var result12 = array12.map ({"No.\($0)"})
 
 容器之间的映射靠 map 和 flatMap 完成. 
 
-对于异步回调其实我们也可以把它放入合理的容器(如:Promise)中实现 map 和 flapMap .
+对于 **异步回调** 其实我们也可以把它放入合理的容器(如:Promise)中实现 map 和 flapMap 的链式调用.
 
 ```Swift
 enum Result<Value>{
@@ -87,46 +82,48 @@ struct Async<T> {
 
 ```Swift
 enum Result<Value> {
-   func map<T>(@noescape f: Value throws -> T) rethrows -> Result<T>{
-       return try flatMap {.Success(try f($0))}}
+ func map<T>(@noescape f: Value throws -> T) rethrows -> Result<T>{
+   return try flatMap {.Success(try f($0))}}
 
-   func flatMap<T>(@noescape f: Value throws -> Result<T>) rethrows->Result<T>{
-       switch self {
-          case let .Failure(error):
-             return .Failure(error)
-          case let .Success(value):
-             return try f(value)}}}
+ func flatMap<T>(@noescape f: Value throws -> Result<T>) rethrows -> Result<T>{
+   switch self {
+      case let .Failure(error):
+        return .Failure(error)
+      case let .Success(value):
+        return try f(value)
+   }}}
 
 extension Async{
-    func map<U>(f: T throws-> U) -> Async<U> {
-        return flatMap{ .unit(try f($0)) }}
+  func map<U>(f: T throws-> U) -> Async<U> {
+    return flatMap{ .unit(try f($0)) }}
 
-    func flatMap<U>(f:T throws-> Async<U>) -> Async<U> {
-        return Async<U>{ cont in
-            self.execute{
-                switch $0.map(f){
-                case .Success(let async):
-                    async.execute(cont)
-                case .Failure(let error):
-                    cont(.Failure(error))}}}}}
+  func flatMap<U>(f:T throws-> Async<U>) -> Async<U> {
+    return Async<U>{ cont in
+      self.execute{
+        switch $0.map(f){
+          case .Success(let async):
+            async.execute(cont)
+          case .Failure(let error):
+            cont(.Failure(error))
+        }}}}}
+
 ```
 
-实际上 flatMap 就是 Monad , Promise 的 then 也是 Monad ,Rx 的 Observable 同样是 Monad:
+实际上 flatMap 就是 Monad, Promise 的 then 也是 Monad, Rx 的 Observable 同样是 Monad :
 
 ```Swift
-  class Promise<T> {
-     func then<U>(body: T->U) -> Promise<U>            //map
-     func then<U>(body: T-> Promise<U>) ->Promise<U>   //flatMap
-  }
+class Promise<T> {
+ func then<U>(body: T->U) -> Promise<U>            //map
+ func then<U>(body: T-> Promise<U>) ->Promise<U>   //flatMap
+}
 
-  class Observable<T> {
-     func map<U>(body: T->U) -> Observable<U>      
-     func flatMap<U>(body: T-> Observable<U>) ->Observable<U>   
-  }
+class Observable<T> {
+ func map<U>(body: T->U) -> Observable<U>      
+ func flatMap<U>(body: T-> Observable<U>) ->Observable<U>   
+}
 ```
 
-
-#### 从 Reactive Extensions(Rx) 的 IObservable, IEnumerable 看 Publish–Subscribe Pattern :
+#### **从 Reactive Extensions(Rx) 的 IObservable, IEnumerable 看 Publish–Subscribe Pattern**
 
 [[Pulling vs. Pushing Data]](https://msdn.microsoft.com/en-us/library/hh242985.aspx)
 
@@ -173,20 +170,21 @@ final class Observable<A> {
   }
   
   func flatMap<B>(transform: @escaping (A) -> Observable<B>) -> Observable<B> {
-      return Observable<B> { completion in
-          self.onResult { result in
-              switch result {
-              case .success(let value):
-                  transform(value).onResult(callback: completion)
-              case .error(let error):
-                  completion(.error(error))}}}}}
+    return Observable<B> { completion in
+      self.onResult { result in
+        switch result {
+          case .success(let value):
+            transform(value).onResult(callback: completion)
+          case .error(let error):
+            completion(.error(error))
+        }}}}}
 ```
-
-从某种角度看 Promise 也是一种允许我们订阅某个延迟动作的机制, 然后在准备就绪时发布一些数据.
 
 [[Why every beginner front-end developer should know publish-subscribe pattern?]](https://itnext.io/why-every-beginner-front-end-developer-should-know-publish-subscribe-pattern-72a12cd68d44)
 
-文章对应[[demo]](https://github.com/hzub/pubsub-demo) 中的核心代码:
+>Because No matter what method of solving asynchronous problem will you use, it will be always some variation of the same principle: something subscribes, something publishes.
+
+
 ```JavaScript
 export function subscribe(callbackFunction) {
   changeListeners.push(callbackFunction);
@@ -215,64 +213,70 @@ export function addPlace(latLng) {
   });
 }
 ```
+[[查看 demo ]](https://github.com/hzub/pubsub-demo)
+
+>JavaScript is very fancy language — “functions are first-class citizens”. It means that any function can be assigned to a variable or passed as a parameter to another function. 
+
+>This characteristic is fundamental in asynchronous scenarios.
+We can define a function that would update our UI — and then pass it to completely another portion of the code, where it will be called.
 
 <img src="https://mmbiz.qpic.cn/mmbiz_png/XIibZ0YbvibkXKEDCRlU9GsNktIiaRZprYJ8dOyWRAhXTNX9y9hIDSzYxuiaQj5lXYxR3yVmiaqF6bphAVIW6IOLwvw/640?wx_fmt=png&wxfrom=5&wx_lazy=1&wx_co=1" width="400"/>
 
-喵神在 [[单向数据流动的函数式 View Controller]](https://onevcat.com/2017/07/state-based-viewcontroller/) 中也应用了这个模式对 State 进行集中管理以便扩展和测试.
+>DOM event listeners are nothing more than subscribing to publishing UI actions. Going further: what is a Promise? From certain point of view, it’s just a mechanism that allows us to subscribe for completion of a certain deferred action, then publishes some data when ready.
+
+>React state and props change? Components’ updating mechanisms are subscribed to the changes. Websocket’s on()? Fetch API? They allow to subscribe to certain network action. Redux? It allows to subscribe to changes in the store. And RxJS? It’s a shameless one big subscribe pattern.
+
+<img src="https://paprika-dev.b0.upaiyun.com/EivCtaYUlSUPQsEacPEyfv8kiFJUBcQVfikIbdw9.jpeg" width="500"/>
+
+
+喵神的[[单向数据流动的函数式 View Controller]](https://onevcat.com/2017/07/state-based-viewcontroller/) 内在运行的也是一种类似 Redux 的数据集中管理模式.
+
+```Swift
+struct State:StateType {
+  var dataSource = TableViewDataSource(todos: [], owner: nil)
+  var text : String = " "
+}
+```
 
 ```Swift
 class Store<A:ActionType,S:StateType,C:CommandType> {
-    let reducer: (_ state:S,_ action:A) -> (S,C?)
-    var subscriber: ((_ state:S,_ previousState:S,_ command:C?) -> Void)?
-    var state: S
-    init(reducer:@escaping (S,A)->(S,C?),initialState:S) {
-        self.reducer = reducer
-        self.state = initialState
-    }
-    //订阅
-    func subscribe(_ handler: @escaping (S,S,C?) -> Void) {
-        self.subscriber = handler
-    }
-    func unsubscribe(){
-        self.subscriber = nil
-    }
-    //发送 
-    func dispatch(_ action:A){
-        let previousState = state
-        let (nextState,command) = reducer(state, action)
-        state = nextState
-        //订阅者获取新的状态
-        subscriber?(state,previousState,command)}}
-```
-几处 subscriber 的作用其实类似于 OC 的 block 传值:
-```Swift
-//declaration
-double (^rateAndTime)(double rate, double time);
-//definition
-rateAndTime = ^double(double rate, double time){
-    return rate*time;
-};
-//caller
-double dx = rateAndTime(32,2);
+  let reducer: (_ state:S,_ action:A) -> (S,C?)
+  var subscriber: ((_ state:S,_ previousState:S,_ command:C?) -> Void)?
+  var state: S
+  init(reducer:@escaping (S,A)->(S,C?),initialState:S) {
+      self.reducer = reducer
+      self.state = initialState
+  }
+  //订阅
+  func subscribe(_ handler: @escaping (S,S,C?) -> Void) {
+      //subscriber 的作用其实类似于 OC 的 block 传值
+      self.subscriber = handler
+  }
+  func unsubscribe(){
+      self.subscriber = nil
+  }
+  //发送 
+  func dispatch(_ action:A){
+      let previousState = state
+      let (nextState,command) = reducer(state, action)
+      state = nextState
+      //订阅者获取新的状态
+      subscriber?(state,previousState,command)}}
 ```
 
-所有在VC中抽象的用户行为都统一指向了 state 的 value 变化, 测试时 只需要关注 reducer 前后的状态
+这样, 所有抽象的用户行为带来的是 reducer 前后 state 的变化.
+
 ```Swift
-//测试
+let (nextState,command) = reducer(state, action)
+```
+测试时以 state 作为断言的依据.
+```Swift
 let initState = TableViewController.State()
 let state = controller.reducer(initState, .updateText(text: "123")).state
 XCTAssertEqual(state.text, "123")
 ```
 
 <img src="https://ws1.sinaimg.cn/large/006tKfTcgy1fjs0fvb71bj31e40ncmze.jpg" width="600"/>
-
-对比 Redux 与 Vuex 
-
-<img src="https://paprika-dev.b0.upaiyun.com/EivCtaYUlSUPQsEacPEyfv8kiFJUBcQVfikIbdw9.jpeg" width="500"/>
-
-<img src="https://ws3.sinaimg.cn/large/006tNc79gy1fk42jdhi50j316e0w6whi.jpg" width="500"/>
-
-
 
 [OC相关单向数据流Demo可参见:Zepo/Reflow](https://github.com/Zepo/Reflow)
 
