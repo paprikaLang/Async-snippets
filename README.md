@@ -1,4 +1,6 @@
-#### **从 Python 的装饰器原理看闭包**
+### **从 Python 的装饰器原理看闭包**
+
+<hr>
 
 ```pyt
 import time
@@ -48,7 +50,9 @@ public func delay(time: TimeInterval, work: @escaping ()->()) -> CancelableTask?
 
 <br>
 
-#### **从 异步回调 看 Monad**
+### **从 异步回调 看 Monad**
+
+<hr>
 
 要理解 Monad 先要理解容器.
 
@@ -74,7 +78,9 @@ print(arr.map ({"No.\($0)"})) //map 和 flatMap 结果也不同
 
 <br>
 
-#### **从 Rx 的 IObservable, IEnumerable 看 Publish–Subscribe Pattern**
+### **从 Rx 的 IObservable, IEnumerable 看 Publish–Subscribe Pattern**
+
+<hr>
 
 [[Pulling vs. Pushing Data]](https://msdn.microsoft.com/en-us/library/hh242985.aspx)
 
@@ -104,8 +110,9 @@ This characteristic is fundamental in asynchronous scenarios.
 
 <br>
 
-#### **从闭包、纯函数、Pub–Sub、Redux 到单向数据流动的函数式 ViewController**
+### **从闭包、纯函数、Pub–Sub、Redux 到单向数据流动的函数式 ViewController**
 
+<hr>
 
 Redux 所有的数据保存在 State , dispatch(action) 将所有导致 State 改变的函数(如:addMarker)集中到 reducer.js , 
 
