@@ -88,6 +88,7 @@ print(arr.map ({"No.\($0)"})) //map 和 flatMap 结果也不同
 
 <img src="https://paprika-dev.b0.upaiyun.com/EkhrOfb6j55xxb7ho5GuFuSp6IB90SUsHLCVdMkV.jpeg" width="500"/>
 
+
 [[Why every beginner front-end developer should know publish-subscribe pattern?]](https://itnext.io/why-every-beginner-front-end-developer-should-know-publish-subscribe-pattern-72a12cd68d44)
 
 > No matter what method of solving asynchronous problem will you use, it will be always some variation of the same principle: something subscribes, something publishes.
@@ -101,8 +102,9 @@ This characteristic is fundamental in asynchronous scenarios.
 
 <img src="https://paprika-dev.b0.upaiyun.com/p2rfJbZHHjHNjAmvkIsfqJKnEKkljjyfGoAySLF6.jpeg" width="500"/>
 
+<br>
 
-### 从闭包、纯函数、Pub–Sub、Redux 到单向数据流动的函数式 ViewController
+#### **从闭包、纯函数、Pub–Sub、Redux 到单向数据流动的函数式 ViewController**
 
 
 Redux 所有的数据保存在 State , dispatch(action) 将所有导致 State 改变的函数(如:addMarker)集中到 reducer.js , 
