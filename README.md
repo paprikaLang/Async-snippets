@@ -1,4 +1,4 @@
-#### **从 Python 的装饰器原理看函数式编程**
+#### **从 Python 的装饰器原理看闭包**
 
 ```pyt
 import time
@@ -23,7 +23,7 @@ f()
 3.返回嵌套函数(punch)
 
 
-iOS 的 TCZKit 用闭包也实现了上面这三个步骤:
+iOS 的 TCZKit 用**闭包**也实现了上面这三个步骤:
 
 ```Swift
 public typealias CancelableTask = (_ cancel: Bool) -> Void
@@ -62,12 +62,14 @@ print(arr.map ({"No.\($0)"})) //map 和 flatMap 结果也不同
 
 2 容器之间的映射有 map 和 flatMap . 
 
-将 **异步回调** 放入合理的容器(如:Promise)中并实现 flapMap 的链式调用, 这样就可以避免回调地狱了. 
+将 **闭包** 放入合理的容器(如:Promise)中并实现 flapMap 的链式调用, 这样就可以避免回调地狱了. 
+
 [[Escaping Hell with Monads]](https://philipnilsson.github.io/Badness10k/escaping-hell-with-monads/).
 
 <img src="https://paprika-dev.b0.upaiyun.com/jzvVyWwYhcIOEW1np7UpXIUduud74yiZ6GQnytag.jpeg" width="500"/>
 
 实际上 flatMap 就是 Monad , Promise 的 then 也是 Monad .
+
 <img src="https://paprika-dev.b0.upaiyun.com/dZYxureNahEv33uuOArlf4mv3OGBR6DeVn2ccjin.jpeg" width="500"/>
 
 <br>
@@ -99,11 +101,13 @@ This characteristic is fundamental in asynchronous scenarios.
 
 <img src="https://paprika-dev.b0.upaiyun.com/p2rfJbZHHjHNjAmvkIsfqJKnEKkljjyfGoAySLF6.jpeg" width="500"/>
 
-随着项目的进展和框架的搭建, 组件层级会越来越复杂, 组件间通信将更加混乱, subscribe 也可能散布在各个角落.
 
-<img src="https://paprika-dev.b0.upaiyun.com/vmw1ArDZaNzX8IihBhPNJFmx5gzZLHlgcaYpa2Mc.jpeg" width="500"/>
+### 从闭包、纯函数、Pub–Sub、Redux 到单向数据流动的函数式 ViewController
 
-Redux 将所有的数据保存在 State , dispatch(action) 把所有导致 State 改变的函数(如:addMarker)集中到 reducer.js , newState 会触发相应组件的 subscribe(handleStoreChange), UI 进而更新.
+
+Redux 所有的数据保存在 State , dispatch(action) 将所有导致 State 改变的函数(如:addMarker)集中到 reducer.js , 
+
+newState 会触发相应组件的 subscribe(handleStoreChange), UI 进而更新.
 
 <img src="https://paprika-dev.b0.upaiyun.com/ouzwtruWwEUwId2SJeSXMjsyAXvJd8eLQPob7mDo.jpeg" width="500"/>
 
@@ -122,7 +126,7 @@ struct State:StateType {
 ```
 <img src="https://paprika-dev.b0.upaiyun.com/Z8fWmvcwRSUGBjGY0KFv7aWXeYgRwrzK95cyVxib.jpeg" width="500"/>
 
-测试
+前面提到的纯函数测试在这里的实现:
 
 ```Swift
 let (nextState,command) = reducer(state, action)
@@ -134,5 +138,4 @@ let state = controller.reducer(initState, .updateText(text: "123")).state
 XCTAssertEqual(state.text, "123")
 ```
 
-[OC相关单向数据流Demo可参见:Zepo/Reflow](https://github.com/Zepo/Reflow)
 

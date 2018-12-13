@@ -84,7 +84,6 @@ class TableViewController: UITableViewController{
         self.cancelTask =  delay(time:6) {
             print("-------------cancel-------------")
         }
-
         navigationItem.rightBarButtonItem?.isEnabled = false
         //此时DataSource为nil
         let dataSource = TableViewDataSource(todos: [], owner: self)
