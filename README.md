@@ -1,8 +1,9 @@
 [[Why every beginner front-end developer should know publish-subscribe pattern?]](https://itnext.io/why-every-beginner-front-end-developer-should-know-publish-subscribe-pattern-72a12cd68d44)
 
-熟悉 Vue 原理的话, 其实不难回答上面的问题.
+如果你熟悉 Vue 或者 Observable 的原理, 其实不难回答上面的问题.
 
 ```javascript
+  // Vue
   function observe(obj) {
     
     Object.keys(obj).forEach(key => {
@@ -27,6 +28,7 @@
 
   function autorun(update) {
     function wrappedUpdate() {
+      // activeUpdate 就像一个 carrier + transporter, 给属性注册订阅者之后再清空自己, 等待下一个订阅者.
       activeUpdate = wrappedUpdate
       update()
       activeUpdate = null
@@ -44,13 +46,8 @@
   state.count++
 ```
 
-我们也可以将异步请求函数中的 completion handler 封装在一个响应式的 Future 容器里.
-
 ```swift
-  func load<A>(_ resource: Resource<A>, completion: @escaping (Result<A>) -> ()) {...}
-```
-
-```swift
+  // Observable
   final class Future<T> {
     var callbacks: [(Result<T>)->()] = []
     var cached: Result<T>?
@@ -74,7 +71,7 @@
           callbacks.append(callback)
       }
     }
-    //flatMap for chaining operations
+    // chaining operations
     func flatMap<U>(f: @escaping (T) -> Future<U>) -> Future<U> {
       return Future<U> { completion in
         self.onResult{ result in 
@@ -89,7 +86,7 @@
     }
   }
 ```
-
+封装在 Future 容器中的 completion handler 可以像 Promise 一样实现 chaining operations .
 ```swift
 //Promise.then 的实现                               //Future.flatMap 的实现
   this.then = function (onFulfill, onReject) {     func flatMap<U>(f: @escaping (T) -> Future<U>) -> Future<U> {
@@ -108,22 +105,23 @@
   }                                                }
 ```
 
-`f(value).onResult(callback: completion)` 你可以这样理解:
+如何理解 `f(value).onResult(callback: completion)` ?
 
 ```javascript
-// Future flatmap                                       //React
-future = f(value)                                       this.setState({count: this.state.count + 1});
-//cached尚未赋值,调用的是callbacks.append(completion)     //this.state 尚未更新, count:0                      
-future.onResult(callback: completion)                   console.log('# this.state', this.state); 
-   
+// Future flatmap                                          //React setState
+future = f(value)                                          this.setState({count: this.state.count + 1});
+//此时cached尚未赋值,调用的是callbacks.append(completion)     //this.state 尚未更新, count:0                      
+future.onResult(callback: completion)                      console.log('# this.state', this.state); 
 ```
+
 **React** 引发的事件, setState 不会同步更新 state , 一方面是因为 setState 会累积 state 的变化, 通过减少组件重绘的次数来降低性能损耗; 另一方面, 如果同步更新 `this.state`, 再调用 setState 更新组件 UI , 则有悖于 Reactive Programming 的思想.
 
-**Future** 的 f(value0) 也是一个异步的过程, send(value1) hook 了它的异步返回结果给 cached 赋值, 并通知到所有的 subscribers , 包括这个 completion .
+**Future** 的 f(value0) 也是一个异步的过程, send(value1) hook 了它的异步返回结果来给 cached 赋值, 以此通知所有的 observers.
 
-**RxSwift** 扩展了 Future 的功能, 也能实现数据与UI的绑定, 就像 RxDart 之于 Stream 一样.
+**Rx** 的 push model 实现了 Future 的原理, 数据和 UI 也可以绑定在一起.
 
 ```swift
+// RxSwift
 let viewModel =
     Observable.combineLatest(locationVM, weatherVM) {
             return ($0, $1)
@@ -140,85 +138,65 @@ viewModel.map { $0.0.city }
     .disposed(by: bag)
 ```
 
+> The push model implemented by Rx is represented by the observable pattern of IObservable<T>/IObserver<T>. The IObservable<T> interface is a dual of the familiar IEnumerable<T> interface. It abstracts a sequence of data, and keeps a list of IObserver<T> implementations that are interested in the data sequence. The IObservable will notify all the observers automatically of any state changes. 
 
- 在 Flutter 的 StatefulWidget 中, 任何 state changes 都会通过 setState 重新 build 整个部件和它的子部件, 而 StreamBuilder 可以监听一个 stream , 当 sink 传入数据时只更新当前的 StreamBuilder. 
+
+ 在 Flutter 的 StatefulWidget 中, 任何 state changes 都会通过 setState 重新 build 整个部件和它的子部件, 而 StreamBuilder 可以监听一个 stream (RxDart 的 Observable 继承自 Stream), 当 sink 传入数据时只更新当前的 StreamBuilder. 
 
 ```dart
-  Widget build(BuildContext context) {
-    CounterBloc _bloc = CounterProvider.of(context).bloc;
-    return Center(
-      child: StreamBuilder(
-      initialData: 0,
-      stream: _bloc.revCount, 
-      builder: (context, snapshot) {
-        return ActionChip(
-          label: Text('${snapshot.data}'),
-          onPressed: () {
-            _bloc.counter.add(1);
-          },
-        );
-      },
-    ));
+final _bloc = CounterBloc();
+body: Center(
+  child: StreamBuilder(
+    stream: _bloc.counter,
+    initialData: 0,
+    builder: (BuildContext context, AsyncSnapshot<int> snapshot) {
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          Text(
+            '${snapshot.data}',
+            style: Theme.of(context).textTheme.display1,
+          ),
+        ],
+      );
+    },
+  ),
+),
+class CounterBloc {
+  int _counter = 0;
+
+  final _counterStateController = StreamController<int>();
+  StreamSink<int> get _inCounter => _counterStateController.sink;
+  // For state, exposing only a stream which outputs data
+  Stream<int> get counter => _counterStateController.stream;
+
+  final _counterEventController = StreamController<CounterEvent>();
+  // For events, exposing only a sink which is an input
+  Sink<CounterEvent> get counterEventSink => _counterEventController.sink;
+
+  CounterBloc() {
+    // Whenever there is a new event, we want to map it to a new state
+    _counterEventController.stream.listen(_mapEventToState);
   }
 
-  class CounterBloc {
-    int _count = 0;
-    final _dataController = StreamController<int>();
-    final _controller = StreamController<int>();
-    StreamSink<int> get counter => _controller.sink;
-    Stream<int> get revCount => _dataController.stream;
-    CounterBloc() {
-      _controller.stream.listen(onData);
-    }
-    void onData(data) {
-      print(data);
-      _count = _count + data;
-      _dataController.add(_count);
-    }
+  void _mapEventToState(CounterEvent event) {
+    if (event is IncrementEvent)
+      _counter++;
+    else
+      _counter--;
+
+    _inCounter.add(_counter);
   }
+
+  void dispose() {
+    _counterStateController.close();
+    _counterEventController.close();
+  }
+}
 ```
-
 同时, Bloc 将 UI 和 业务逻辑 分离开来, 业务逻辑测试只需关注 Bloc. 
 
-*对比 RxSwift 的测试*
-
-```swift
-var registerViewModel = RegisterViewModel()
-var disposeBag = DisposeBag()
-func testInputNumber() {
-  // TestScheduler 相当于一个 Flutter 的 StreamController
-  // 它会模拟响应式环境中，用户在某一时刻进行某个交互（输入）的情况, initialClock 虚拟时间
-  let scheduler = TestScheduler(initialClock: 0) 
-
-  // 相当于 Stream<bool> get canSendObserver => controller.stream;
-  let canSendObserver = scheduler.createObserver(Bool.self)
-
-  // 从 scheduler 创建热信号，通过 next 方法模拟输入手机号。相当于 sink.add 方法.
-  let inputPhoneNumberObservable = scheduler.createHotObservable([next(100, ("1862222")),
-                                                                  next(200, ("18622222222"))])
-  // 相当于 stream.listen
-  self.registerViewModel.canSendCode
-      .subscribe(canSendObserver)
-      .addDisposableTo(self.disposeBag)
-
-  // 相当于在部件中 设置 stream . 这样信号发出来后，ViewModel 才会有反应
-  inputPhoneNumberObservable
-      .bind(to: self.registerViewModel.phoneNumber)
-      .addDisposableTo(self.disposeBag)
-
-  scheduler.start()
-
-  // 这是期望的测试结果如: 在 0 这个时间点，由于没有输入，canSendCode 是 false
-  let expectedCanSendEvents = [
-    next(0, false),
-    next(100, false),
-    next(200, true)]
-
-  // Assert Equal 一下 Observer 真实的 events（结果）和期望的结果，一样就测试通过
-  XCTAssertEqual(canSendObserver.events, expectedCanSendEvents)
-```
-
- Flutter 的状态管理模式还包含一种 flutter_redux 提供的单向数据流架构. 它的单向在于所有 states 都储存在一个 store 中.
+ Flutter 的状态管理模式中还包括一种 flutter_redux 提供的单向数据流架构. 它的单向在于所有 states 都储存在一个 store 中.
 
 喵神以 redux 为灵感, 用 Swift 创建了一个[[单向数据流动的函数式 View Controller]](https://onevcat.com/2017/07/state-based-viewcontroller/) :
 
@@ -226,7 +204,7 @@ func testInputNumber() {
 
 <img src="https://paprika-dev.b0.upaiyun.com/Z8fWmvcwRSUGBjGY0KFv7aWXeYgRwrzK95cyVxib.jpeg" width="600"/>
 
-*欣赏一下它的测试*:
+*再看一下它的测试*:
 
 ```swift
   //let (nextState,command) = reducer(state, action)
@@ -240,31 +218,13 @@ func testInputNumber() {
 
 <hr>
 
-最后的最后, 我们聊一聊 monad . 
 
-Haskell 告诉你 monad 是这样的. 
+> React Hooks provide access to imperative escape hatches and don’t require you to learn complex functional or reactive programming techniques.
 
-```haskell
-Prelude> :i Monad
-class Applicative m => Monad (m :: * -> *) where
-  (>>=) :: m a -> (a -> m b) -> m b
-  (>>) :: m a -> m b -> m b
 
-Prelude> :{
-Prelude| half x = if even x
-Prelude|    then Just (x `div` 2)
-Prelude|    else Nothing
-Prelude| :}
-Prelude> Just 20 >>= half
-Just 10
-Prelude> Just 20 >>= half >>= half
-Just 5
-```
 
-Future 的 flatMap 就是 monad.
-
-其实 React Hooks 的 useState 也是一个 state monad .
 ```swift
+// swift's state monad
 struct State<S, T> {
     let on: (S) -> (T, S)
 }
@@ -307,7 +267,7 @@ func fetch(names: [String]) -> MState {
         return (names + [name], id + 1)
     }
 }
-
+// what is useState("hello")
 let fetchState = MState.ret(["Hello"]) >>- fetch >>- fetch >>- fetch >>- fetch
 let state = fetchState.on(1)
 let names = state.0               //["Hello", "Name", "Is", "paprika", "Lang"]
@@ -315,10 +275,3 @@ let nums = state.1                //5
 let name = state.0[nums - 1]      //Lang
 ```
 
-实现起来有些复杂了, 不过 React 的官方文档如是说: 
-
-> Hooks provide access to imperative escape hatches and don’t require you to learn complex functional or reactive programming techniques.
-
-你可以理解为: 
-
-> 让 monad 飞一会儿, Hooks !
