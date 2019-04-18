@@ -46,6 +46,8 @@
   state.count++
 ```
 
+<br>
+
 ```swift
   // Observable
   final class Future<T> {
@@ -116,9 +118,9 @@ future.onResult(callback: completion)                      console.log('# this.s
 
 **React** 引发的事件, setState 不会同步更新 state , 一方面是因为 setState 会累积 state 的变化, 通过减少组件重绘的次数来降低性能损耗; 另一方面, 如果同步更新 `this.state`, 再调用 setState 更新组件 UI , 则有悖于 Reactive Programming 的思想.
 
-**Future** 的 f(value0) 也是一个异步的过程, send(value1) hook 了它的异步返回结果来给 cached 赋值, 以此通知所有的 observers.
+**Future** 的 f(value0) 也是一个异步的过程, send(value1) hook 了它的异步返回结果来给 cached 赋值, 并通知所有的 observers.
 
-**Rx** 的 push model 实现了 Future 的原理, 数据和 UI 也可以绑定在一起.
+**RxSwift** 可以扩展这个 Future 的功能, 实现 数据与 UI 的绑定.
 
 ```swift
 // RxSwift
@@ -138,10 +140,12 @@ viewModel.map { $0.0.city }
     .disposed(by: bag)
 ```
 
+<br>
+
 > The push model implemented by Rx is represented by the observable pattern of IObservable<T>/IObserver<T>. The IObservable<T> interface is a dual of the familiar IEnumerable<T> interface. It abstracts a sequence of data, and keeps a list of IObserver<T> implementations that are interested in the data sequence. The IObservable will notify all the observers automatically of any state changes. 
 
 
- 在 Flutter 的 StatefulWidget 中, 任何 state changes 都会通过 setState 重新 build 整个部件和它的子部件, 而 StreamBuilder 可以监听一个 stream (RxDart 的 Observable 继承自 Stream), 当 sink 传入数据时只更新当前的 StreamBuilder. 
+在 Flutter 的 StatefulWidget 中, 任何 state changes 都会通过 setState 重新 build 整个部件和它的子部件; 这时需要创建 StreamBuilder 来监听一个 stream , 当 sink 再传入数据时就可以只更新当前 StreamBuilder 对应的部件了. 
 
 ```dart
 final _bloc = CounterBloc();
@@ -196,32 +200,58 @@ class CounterBloc {
 ```
 同时, Bloc 将 UI 和 业务逻辑 分离开来, 业务逻辑测试只需关注 Bloc. 
 
- Flutter 的状态管理模式中还包括一种 flutter_redux 提供的单向数据流架构. 它的单向在于所有 states 都储存在一个 store 中.
-
-喵神以 redux 为灵感, 用 Swift 创建了一个[[单向数据流动的函数式 View Controller]](https://onevcat.com/2017/07/state-based-viewcontroller/) :
-
-<img src="https://ws1.sinaimg.cn/large/006tKfTcgy1fjs0fvb71bj31e40ncmze.jpg" width="600"/>
-
-<img src="https://paprika-dev.b0.upaiyun.com/Z8fWmvcwRSUGBjGY0KFv7aWXeYgRwrzK95cyVxib.jpeg" width="600"/>
-
-*再看一下它的测试*:
-
-```swift
-  //let (nextState,command) = reducer(state, action)
-
-  let initState = TableViewController.State()
-  let state = controller.reducer(initState, .updateText(text: "123")).state
-  XCTAssertEqual(state.text, "123")
-```
-
 <br>
 
-<hr>
+React Hooks 可以把 逻辑, 状态, UI 分离的更加清楚,  甚至原本同一组件的状态 'loadedData' 可以作为 'hasNetError' 的输入源来监听,  这使得 React 也有了种 RxJS 的味道.
+```dart
+function useFriendStatusBoolean(friendID) {
+  const [isOnline, setIsOnline] = useState(null);
+  function handleStatusChange(status) {
+    setIsOnline(status.isOnline);
+  }
 
+  useEffect(() => {
+    ChatAPI.subscribeToFriendStatus(friendID, handleStatusChange);
+    return () => {
+      ChatAPI.unsubscribeFromFriendStatus(friendID, handleStatusChange);
+    };
+  });
+  return isOnline;
+}
 
-> React Hooks provide access to imperative escape hatches and don’t require you to learn complex functional or reactive programming techniques.
+function useFriendStatusString(props) {
+  const isOnline = useFriendStatusBoolean(props.friend.id);
+  if (isOnline === null) {
+    return "Loading...";
+  }
+  return isOnline ? "Online" : "Offline";
+}
 
+function FriendListItem(props) {
+  const isOnline = useFriendStatusBoolean(props.friend.id);
+  return (
+    <li style={{ color: isOnline ? "green" : "black" }}>{props.friend.name}</li>
+  );
+}
 
+function FriendListStatus(props) {
+  const statu = useFriendStatusString(props.friend.id);
+  return <li>{statu}</li>;
+}
+```
+
+另外需要注意的两点是:
+
+1 useState 的实现类似 state monad .
+
+```javascript
+// useState                                    // setState
+useEffect(() => {                              componentDidUpdate() {
+  setTimeout(() => {                             setTimeout(() => {
+    console.log(`You clicked ${count} times`);     console.log(`You clicked ${this.state.count} times`);
+  }, 3000);                                      }, 3000);
+});                                            }
+```
 
 ```swift
 // swift's state monad
@@ -274,4 +304,25 @@ let names = state.0               //["Hello", "Name", "Is", "paprika", "Lang"]
 let nums = state.1                //5
 let name = state.0[nums - 1]      //Lang
 ```
+
+2 useReducer 不能当做 redux 来看. redux 的单向数据流重点在于所有 states 都储存在一个 store 中.
+
+<br>
+
+喵神以 redux 为灵感, 用 Swift 设计了一个[[单向数据流动的函数式 View Controller]](https://onevcat.com/2017/07/state-based-viewcontroller/) :
+
+<img src="https://ws1.sinaimg.cn/large/006tKfTcgy1fjs0fvb71bj31e40ncmze.jpg" width="600"/>
+
+<img src="https://paprika-dev.b0.upaiyun.com/Z8fWmvcwRSUGBjGY0KFv7aWXeYgRwrzK95cyVxib.jpeg" width="600"/>
+
+*我们最后再看一下它的测试*:
+
+```swift
+  //let (nextState,command) = reducer(state, action)
+
+  let initState = TableViewController.State()
+  let state = controller.reducer(initState, .updateText(text: "123")).state
+  XCTAssertEqual(state.text, "123")
+```
+
 
