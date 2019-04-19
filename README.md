@@ -264,15 +264,15 @@ function FriendListStatus(props) {
 }
 ```
 
-Flutter 还有一套状态管理方式, 也和 React 有着密切的联系, 它就是 Redux .
+Flutter 还有一套状态管理方式 --- Redux .
 
-喵神 用 Swift 设计了一个[[单向数据流动的函数式 View Controller]]( https://onevcat.com/2017/07/state-based-viewcontroller/), 也是以 redux 为灵感, React 咋这么厉害咱也不敢问.
+喵神 用 Swift 设计了一个[[单向数据流动的函数式 View Controller]]( https://onevcat.com/2017/07/state-based-viewcontroller/)也是以 Redux 为灵感, 它同时是一个很好的学习与应用 Redux 的小范例. 
 
 <img src="https://ws1.sinaimg.cn/large/006tKfTcgy1fjs0fvb71bj31e40ncmze.jpg" width="600"/>
 
 <img src="https://paprika-dev.b0.upaiyun.com/Z8fWmvcwRSUGBjGY0KFv7aWXeYgRwrzK95cyVxib.jpeg" width="600"/>
 
-*最后看一下 redux 的测试*:
+* redux 的测试*:
 
 ```swift
   //let (nextState,command) = reducer(state, action)
