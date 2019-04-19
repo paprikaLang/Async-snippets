@@ -1,6 +1,8 @@
+
+
 [[Why every beginner front-end developer should know publish-subscribe pattern?]](https://itnext.io/why-every-beginner-front-end-developer-should-know-publish-subscribe-pattern-72a12cd68d44)
 
-如果我们可以进一步聊聊上面的话题, 不妨从 Vue 或者 Observable 的原理开始.
+如果我们可以进一步展开上面的话题, 不妨从 Vue 或者 Observable 的原理开始.
 
 ```javascript
   // Vue
@@ -146,7 +148,7 @@ viewModel.map { $0.0.city }
 
 <br>
 
-React 在重绘一个父组件时会将没有状态变化的子组件也一起更新,  React Hooks 的 useCallback 结合 React.memo 可以解决这个问题.
+React 在重绘时有一个问题是, 它会将组件内没有状态变化的子组件也一起更新. React Hooks 的 useCallback 结合 React.memo 能防止这种不必要的渲染.
 
 ```javascript
 export default function ButtonMemo () {
@@ -170,7 +172,7 @@ const Button = React.memo(({ callback }) => (
 ));
 ```
 
- Flutter 其实也存在上面的问题, 它的解决的办法是创建 StreamBuilder 来监听一个 stream , 当 sink 再传入数据时只重绘订阅了 stream 的部件. 
+ Flutter 也存在上面这个问题, 它的解决办法是创建 StreamBuilder 来监听一个 stream , 当 sink 再传入数据时只重绘订阅了 stream 的部件. 
 
 ```dart
 final _bloc = CounterBloc();
@@ -221,11 +223,11 @@ class CounterBloc {
   }
 }
 ```
-同时,  Bloc 这套 Flutter 的状态管理方案将 UI 和 状态 完全分离开来, 使得业务逻辑测试只需关注 Bloc . 
+同时,  Bloc 这套 Flutter 的状态管理方式将 UI 和 状态 完全分离开来, 使得业务逻辑测试只需关注 Bloc . 
 
 <br>
 
-而 React Hooks 对 状态 与 UI 的拆分更妙, 它让原本同一组件内的状态之间有了时间维度上的因果关联,  React 似乎有了种 RxJS 的味道.
+而 React Hooks 对 状态 与 UI 的拆分也十分巧妙, 它让原本同一组件内的状态之间产生 Observable 与 Observers 的关系, React 似乎有了种 RxJS 的味道.
 
 ```dart
 function useFriendStatusBoolean(friendID) {
@@ -281,6 +283,8 @@ Flutter 还有一套状态管理方式 --- Redux .
   let state = controller.reducer(initState, .updateText(text: "123")).state
   XCTAssertEqual(state.text, "123")
 ```
+
+
 
 
 
