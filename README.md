@@ -1,6 +1,6 @@
 [[Why every beginner front-end developer should know publish-subscribe pattern?]](https://itnext.io/why-every-beginner-front-end-developer-should-know-publish-subscribe-pattern-72a12cd68d44)
 
-如果你熟悉 Vue 或者 Observable 的原理, 其实不难回答上面的问题.
+如果我们可以进一步聊聊上面的话题, 不妨从 Vue 或者 Observable 的原理开始.
 
 ```javascript
   // Vue
@@ -46,10 +46,8 @@
   state.count++
 ```
 
-<br>
-
 ```swift
-  // Observable
+  // Observable 
   final class Future<T> {
     var callbacks: [(Result<T>)->()] = []
     var cached: Result<T>?
@@ -89,6 +87,7 @@
   }
 ```
 封装在 Future 容器中的 completion handler 可以像 Promise 一样实现 chaining operations .
+
 ```swift
 //Promise.then 的实现                               //Future.flatMap 的实现
   this.then = function (onFulfill, onReject) {     func flatMap<U>(f: @escaping (T) -> Future<U>) -> Future<U> {
@@ -107,7 +106,7 @@
   }                                                }
 ```
 
-如何理解 `f(value).onResult(callback: completion)` ?
+如何理解 `f(value).onResult(callback: completion)` :
 
 ```javascript
 // Future flatmap                                          //React setState
@@ -118,9 +117,13 @@ future.onResult(callback: completion)                      console.log('# this.s
 
 **React** 引发的事件, setState 不会同步更新 state , 一方面是因为 setState 会累积 state 的变化, 通过减少组件重绘的次数来降低性能损耗; 另一方面, 如果同步更新 `this.state`, 再调用 setState 更新组件 UI , 则有悖于 Reactive Programming 的思想.
 
-**Future** 的 f(value0) 也是一个异步的过程, send(value1) hook 了它的异步返回结果来给 cached 赋值, 并通知所有的 observers.
+**Future** 的 f(value0) 也是一个异步的过程, send(value1) hook 了它的异步返回结果来给 cached 赋值, 并通知它的所有 observers.
 
-**RxSwift** 可以扩展这个 Future 的功能, 实现 数据与 UI 的绑定.
+<br>
+
+**RxSwift** 可以帮助我们扩展这个 Future 的功能, 包括 实现数据与UI的绑定.
+
+> The push model implemented by Rx is represented by the observable pattern of IObservable<T>/IObserver<T>. The IObservable<T> interface is a dual of the familiar IEnumerable<T> interface. It abstracts a sequence of data, and keeps a list of IObserver<T> implementations that are interested in the data sequence. The IObservable will notify all the observers automatically of any state changes. 
 
 ```swift
 // RxSwift
@@ -140,12 +143,34 @@ viewModel.map { $0.0.city }
     .disposed(by: bag)
 ```
 
+
 <br>
 
-> The push model implemented by Rx is represented by the observable pattern of IObservable<T>/IObserver<T>. The IObservable<T> interface is a dual of the familiar IEnumerable<T> interface. It abstracts a sequence of data, and keeps a list of IObserver<T> implementations that are interested in the data sequence. The IObservable will notify all the observers automatically of any state changes. 
+React 在重绘一个父组件时会将没有状态变化的子组件也一起更新,  React Hooks 的 useCallback 结合 React.memo 可以解决这个问题.
 
+```javascript
+export default function ButtonMemo () {
+  const [text, setText] = useState(20);
+  const btnCallback = useCallback(e => {
+    console.log("click");
+    setText(Math.floor(Math.random() + 10));
+  }, []);
+  return (
+    <div>
+      <div>The random number is: {text}</div>
+      <Button callback={(btnCallback)} />
+    </div>
+  );
+};
+const Button = React.memo(({ callback }) => (
+  <button onClick={callback}>
+  {console.log("button re-rendered!")}
+  +
+  </button>
+));
+```
 
-在 Flutter 的 StatefulWidget 中, 任何 state changes 都会通过 setState 重新 build 整个部件和它的子部件; 这时需要创建 StreamBuilder 来监听一个 stream , 当 sink 再传入数据时就可以只更新当前 StreamBuilder 对应的部件了. 
+ Flutter 其实也存在上面的问题, 它的解决的办法是创建 StreamBuilder 来监听一个 stream , 当 sink 再传入数据时只重绘订阅了 stream 的部件. 
 
 ```dart
 final _bloc = CounterBloc();
@@ -188,21 +213,20 @@ class CounterBloc {
       _counter++;
     else
       _counter--;
-
     _inCounter.add(_counter);
   }
-
   void dispose() {
     _counterStateController.close();
     _counterEventController.close();
   }
 }
 ```
-同时, Bloc 将 UI 和 业务逻辑 分离开来, 业务逻辑测试只需关注 Bloc. 
+同时,  Bloc 这套 Flutter 的状态管理方案将 UI 和 状态 完全分离开来, 使得业务逻辑测试只需关注 Bloc . 
 
 <br>
 
-React Hooks 可以把 逻辑, 状态, UI 分离的更加清楚,  甚至原本同一组件的状态 'loadedData' 可以作为 'hasNetError' 的输入源来监听,  这使得 React 也有了种 RxJS 的味道.
+而 React Hooks 对 状态 与 UI 的拆分更妙, 它让原本同一组件内的状态之间有了时间维度上的因果关联,  React 似乎有了种 RxJS 的味道.
+
 ```dart
 function useFriendStatusBoolean(friendID) {
   const [isOnline, setIsOnline] = useState(null);
@@ -240,82 +264,15 @@ function FriendListStatus(props) {
 }
 ```
 
-另外需要注意的两点是:
+Flutter 还有一套状态管理方式, 也和 React 有着密切的联系, 它就是 Redux .
 
-1 useState 的实现类似 state monad .
-
-```javascript
-// useState                                    // setState
-useEffect(() => {                              componentDidUpdate() {
-  setTimeout(() => {                             setTimeout(() => {
-    console.log(`You clicked ${count} times`);     console.log(`You clicked ${this.state.count} times`);
-  }, 3000);                                      }, 3000);
-});                                            }
-```
-
-```swift
-// swift's state monad
-struct State<S, T> {
-    let on: (S) -> (T, S)
-}
-extension State {
-    static func ret(_ data: T) -> State<S, T> {
-        return State { s in (data, s) }
-    }
-    
-    func bind<O>(_ function: @escaping (T) -> State<S, O>) -> State<S, O> {
-        let funct = on
-        return State<S, O> { s in
-            let (oldData, oldState) = funct(s)
-            return function(oldData).on(oldState)
-        }
-    }
-}
-
-precedencegroup MonadPrecedence {
-    associativity: left
-    higherThan: MultiplicationPrecedence
-}
-infix operator >>- : MonadPrecedence
-func >>- <S, T, O>(lhs: State<S, T>, f: @escaping (T) -> State<S, O>) -> State<S, O> {
-    return lhs.bind(f)
-}
-
-struct Person {
-    let id: Int
-    let name: String
-}
-let data = ["My", "Name", "Is", "paprika", "Lang"].enumerated().map(Person.init)
-
-func fetchNameWith(id: Int) -> String? {
-    return data.filter { $0.id == id }.first?.name
-}
-typealias MState = State<Int, [String]>
-func fetch(names: [String]) -> MState {
-    return MState { id in
-        guard let name = fetchNameWith(id: id) else { return (names, id) }
-        return (names + [name], id + 1)
-    }
-}
-// what is useState("hello")
-let fetchState = MState.ret(["Hello"]) >>- fetch >>- fetch >>- fetch >>- fetch
-let state = fetchState.on(1)
-let names = state.0               //["Hello", "Name", "Is", "paprika", "Lang"]
-let nums = state.1                //5
-let name = state.0[nums - 1]      //Lang
-```
-
-2 useReducer 不能当做 redux 来看. redux 的单向数据流重点在于所有 states 都储存在一个 store 中.
-
-<br>
-
-喵神以 redux 为灵感, 用 Swift 设计了一个[[单向数据流动的函数式 View Controller]](https://onevcat.com/2017/07/state-based-viewcontroller/) :
+喵神 用 Swift 设计了一个[[单向数据流动的函数式 View Controller]]( https://onevcat.com/2017/07/state-based-viewcontroller/), 也是以 redux 为灵感, React 咋这么厉害咱也不敢问.
 
 <img src="https://ws1.sinaimg.cn/large/006tKfTcgy1fjs0fvb71bj31e40ncmze.jpg" width="600"/>
 
 <img src="https://paprika-dev.b0.upaiyun.com/Z8fWmvcwRSUGBjGY0KFv7aWXeYgRwrzK95cyVxib.jpeg" width="600"/>
 
-*我们最后再看一下它的测试*:
+*最后看一下 redux 的测试*:
 
 ```swift
   //let (nextState,command) = reducer(state, action)
@@ -324,5 +281,7 @@ let name = state.0[nums - 1]      //Lang
   let state = controller.reducer(initState, .updateText(text: "123")).state
   XCTAssertEqual(state.text, "123")
 ```
+
+
 
 
