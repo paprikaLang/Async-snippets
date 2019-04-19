@@ -272,7 +272,7 @@ Flutter 还有一套状态管理方式 --- Redux .
 
 <img src="https://paprika-dev.b0.upaiyun.com/Z8fWmvcwRSUGBjGY0KFv7aWXeYgRwrzK95cyVxib.jpeg" width="600"/>
 
-* redux 的测试*:
+*redux 的测试:*
 
 ```swift
   //let (nextState,command) = reducer(state, action)
