@@ -1,8 +1,6 @@
+[Why every beginner front-end developer should know publish-subscribe pattern?]](https://itnext.io/why-every-beginner-front-end-developer-should-know-publish-subscribe-pattern-72a12cd68d44)
 
-
-[[Why every beginner front-end developer should know publish-subscribe pattern?]](https://itnext.io/why-every-beginner-front-end-developer-should-know-publish-subscribe-pattern-72a12cd68d44)
-
-如果我们可以进一步展开上面的话题, 不妨从 Vue 或者 Observable 的原理开始.
+如果进一步展开上面的话题, 我们不妨从 Vue 或者 Observable 的原理聊起.
 
 ```javascript
   // Vue
@@ -113,7 +111,7 @@
 ```javascript
 // Future flatmap                                          //React setState
 future = f(value)                                          this.setState({count: this.state.count + 1});
-//此时cached尚未赋值,调用的是callbacks.append(completion)     //this.state 尚未更新, count:0                      
+//异步的f cached尚未赋值,调用callbacks.append(completion)    //this.state 尚未更新, count:0                      
 future.onResult(callback: completion)                      console.log('# this.state', this.state); 
 ```
 
@@ -148,7 +146,7 @@ viewModel.map { $0.0.city }
 
 <br>
 
-React 在重绘时有一个问题是, 它会将组件内没有状态变化的子组件也一起更新. React Hooks 的 useCallback 结合 React.memo 能防止这种不必要的渲染.
+React 在重绘时会遇到一个问题: 它会将组件内没有状态变化的子组件也一起更新. React Hooks 的 useCallback 配合 React.memo 能够避免这种子组件不必要的渲染.
 
 ```javascript
 export default function ButtonMemo () {
@@ -172,7 +170,7 @@ const Button = React.memo(({ callback }) => (
 ));
 ```
 
- Flutter 也存在上面这个问题, 它的解决办法是创建 StreamBuilder 来监听一个 stream , 当 sink 再传入数据时只重绘订阅了 stream 的部件. 
+ Flutter 则通过创建 StreamBuilder 来监听一个 stream , 当 sink 再传入数据时只更新订阅了 stream 的部件(包括它的子部件). 
 
 ```dart
 final _bloc = CounterBloc();
@@ -223,11 +221,11 @@ class CounterBloc {
   }
 }
 ```
-同时,  Bloc 这套 Flutter 的状态管理方式将 UI 和 状态 完全分离开来, 使得业务逻辑测试只需关注 Bloc . 
+同时,  Bloc 这套 Flutter 的状态管理方式将 UI 与 业务逻辑 完全分离开来, 这样业务逻辑的扩展和测试会更加方便. 
 
 <br>
 
-而 React Hooks 对 状态 与 UI 的拆分也十分巧妙, 它让原本同一组件内的状态之间产生 Observable 与 Observers 的关系, React 似乎有了种 RxJS 的味道.
+而 React Hooks 对 状态 、UI 的拆分 可以让原本同一组件内的状态之间转变成 Observable 与 Observers 的关系, 使得 React 多了一点 RxJS 的味道.
 
 ```dart
 function useFriendStatusBoolean(friendID) {
@@ -266,7 +264,7 @@ function FriendListStatus(props) {
 }
 ```
 
-Flutter 还有一套状态管理方式 --- Redux .
+Flutter 还有一套状态管理方式是 --- Redux .
 
 喵神 用 Swift 设计了一个[[单向数据流动的函数式 View Controller]]( https://onevcat.com/2017/07/state-based-viewcontroller/)也是以 Redux 为灵感, 它同时是一个很好的学习与应用 Redux 的小范例. 
 
@@ -283,9 +281,4 @@ Flutter 还有一套状态管理方式 --- Redux .
   let state = controller.reducer(initState, .updateText(text: "123")).state
   XCTAssertEqual(state.text, "123")
 ```
-
-
-
-
-
 
