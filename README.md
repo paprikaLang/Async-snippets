@@ -1,6 +1,6 @@
 喵神用 Swift 实现了[[单向数据流动的函数式 View Controller]]( https://onevcat.com/2017/07/state-based-viewcontroller/). 
 
-<img src="https://ws1.sinaimg.cn/large/006tKfTcgy1fjs0fvb71bj31e40ncmze.jpg" width="600"/>
+<img src="https://onevcat.com/assets/images/2017/view-controller-states.svg" width="600"/>
 
 ```swift
 class Store<A: ActionType, S: StateType, C: CommandType> {
