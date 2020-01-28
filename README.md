@@ -30,7 +30,7 @@ class Store<A: ActionType, S: StateType, C: CommandType> {
 }
 ```
 
-```
+```swift
   // reducer 让 controller 的测试变得很容易.
   let initState = TableViewController.State()
   let state = controller.reducer(initState, .updateText(text: "123")).state
@@ -39,7 +39,7 @@ class Store<A: ActionType, S: StateType, C: CommandType> {
 
  `Store` 里面的逻辑和 `redux` 的 createStore 是一样的, 而其中 `reducer` 函数和 `RxJS` 中维护应用状态的 `scan` 操作符又非常契合, 那么我们不妨用 RxJS 再来实现一版 :
 
-```
+```javascript
 const createReactiveStore = (reducer, initialState) => {
   const action$ = new Subject();
   let currentState = initialState;
@@ -60,7 +60,7 @@ const createReactiveStore = (reducer, initialState) => {
 }
 ```
 
-```
+```javascript
 //state是一个累积的变量，10为state的默认初始值.
 //scan 完全可以替代全局变量来维持应用状态，如果程序中使用了多个scan，这些内部状态也绝对不会互相干扰.
 Rx.Observable.from([1, 2]).pipe(
@@ -70,7 +70,7 @@ Rx.Observable.from([1, 2]).pipe(
 
  action 在进入 store 的 dispatch 函数之前会经过每个中间件的校验, 不符合条件的会通过 next(action) 传给下一个中间件, 我们可以用另一个和 `reducer` 很相近的操作符 `reduce` 来搭建 `redux 中间件` 之间的通道:
 
-```
+```javascript
 const reduxThunk = ({ dispatch, getState }) => next => action => {
   if (typeof action === 'function') {
     return action(dispatch, getState)
@@ -79,7 +79,7 @@ const reduxThunk = ({ dispatch, getState }) => next => action => {
 }
 ```
 
-```
+```javascript
 export function applyMiddleware(...middlewares) {
   return createStore => reducer => {
     const store = createStore(reducer)
@@ -108,7 +108,7 @@ redux-thunk 功能简单，对于复杂的异步操作支持不够. Netflix 的 
 
 在 Redux-Observable 的 `epic` 里可以灵活地处理每一个action，也可以调动 store 中的方法, 不过 epic 返回的也是一个 `Observable`，Redux 可以在 epic 外订阅它，再对新产生的 action 进行 dispatch .
 
-```
+```javascript
 const epic = (action$, store) => {
   return action$
     .filter(
@@ -128,7 +128,7 @@ const epic = (action$, store) => {
 
 <img src="http://img.wwery.com/tourist/a13320109095059.jpg" width="500"/>
 
-```
+```javascript
 //生产者
 const createPlus$ = () => {
   return Rx.Observable.fromEvent(document.querySelector('#plus'), 'click');
@@ -162,7 +162,7 @@ Flutter 也有类似的模式 ---- Business Logic Component. Dart 内置了两�
 
 Stream 具备 yield 和 listen , 也就是 `迭代器模式` 和 `观察者模式`, 已经可以称的上 observable 了. 而 RxDart 正是基于 Stream 进行的封装与扩展.
 
-迭代器能够遍历一个复杂的数据集合(数组, 树形结构, 单向链表)的对象, 它提供的通用接口(getCurrent, moveToNext, isDone)让使用者不用关心这个数据集合是如何实现的. 当迭代器模式结合观察者模式之后,使用者甚至无需关心如何拉取数据或者数据是同步还是异步产生的,因为订阅了publisher之后数据会自动推送给observer.
+迭代器能够遍历一个复杂的数据集合(数组, 树形结构, 单向链表)的对象, 它提供的通用接口(getCurrent, moveToNext, isDone)让使用者不用关心这个数据集合是如何实现的. 当迭代器模式结合观察者模式之后, 使用者甚至无需关心如何拉取数据或者数据是同步还是异步产生的, 因为订阅了publisher之后数据会自动推送给observer.
 
 
 
