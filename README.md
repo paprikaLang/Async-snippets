@@ -31,13 +31,13 @@ class Store<A: ActionType, S: StateType, C: CommandType> {
 ```
 
 ```swift
-  // reducer 让 controller 的测试变得很容易.
+  // reducer 可以让 controller 的测试变得很容易.
   let initState = TableViewController.State()
   let state = controller.reducer(initState, .updateText(text: "123")).state
   XCTAssertEqual(state.text, "123")
 ```
 
- `Store` 里面的逻辑和 `redux` 的 createStore 是一样的, 而其中 `reducer` 函数和 `RxJS` 中维护应用状态的 `scan` 操作符又非常契合, 那么我们不妨用 RxJS 再来实现一版 :
+ 喵神这个 `Store` 里面的逻辑和 `Redux` 的 createStore 是一样的, 其中 `reducer` 函数和 `RxJS` 中用来维护应用状态的 `scan` 操作符又非常契合, 那我们不妨用 RxJS 再来实现一版 Store:
 
 ```javascript
 const createReactiveStore = (reducer, initialState) => {
@@ -68,7 +68,7 @@ Rx.Observable.from([1, 2]).pipe(
   .subscribe(v => console.log(v))
 ```
 
- action 在进入 store 的 dispatch 函数之前会经过每个中间件的校验, 不符合条件的会通过 next(action) 传给下一个中间件, 我们可以用另一个和 `reducer` 很相近的操作符 `reduce` 来搭建 `redux 中间件` 之间的通道:
+ action 在进入 store 的 dispatch 函数之前要经过每个中间件的校验, 不符合条件的会通过 next(action) 传给下一个中间件, 我们可以用另一个和 `reducer` 很相近的操作符 `reduce` 来搭建 `redux 中间件` 之间的通道:
 
 ```javascript
 const reduxThunk = ({ dispatch, getState }) => next => action => {
@@ -104,7 +104,7 @@ export function compose(...fns) {
 }
 ```
 
-redux-thunk 功能简单，对于复杂的异步操作支持不够. Netflix 的 `Redux-Observable` 借助 RxJS 可以解决这个问题:
+redux-thunk 对于复杂的异步操作支持不够, Netflix 的 `Redux-Observable` 借助 Rx 解决了这个问题 ---- 
 
 在 Redux-Observable 的 `epic` 里可以灵活地处理每一个action，也可以调动 store 中的方法, 不过 epic 返回的也是一个 `Observable`，Redux 可以在 epic 外订阅它，再对新产生的 action 进行 dispatch .
 
