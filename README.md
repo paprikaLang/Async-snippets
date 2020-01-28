@@ -37,7 +37,7 @@ class Store<A: ActionType, S: StateType, C: CommandType> {
   XCTAssertEqual(state.text, "123")
 ```
 
-喵神这个 `Store` 里面的逻辑和 `Redux` 的 createStore 是一样的, 其中的 reducer: (_ state: S, _ action: A) -> (S, C?) 函数又和 `RxJS` 中的 `scan` 操作符非常契合:
+喵神这个 `Store` 里面的逻辑和 **Redux** 的 `createStore` 是一样的, 其中的 `reducer: (_ state: S, _ action: A) -> (S, C?)` 函数又和 **RxJS** 中的 `scan` 操作符非常契合:
 
 ```javascript
 //scan 的参数 state 是一个累积的变量，10为state的默认初始值, action 为上游传下来的[1,2].
@@ -47,7 +47,9 @@ Rx.Observable.from([1, 2]).pipe(
   .subscribe(v => console.log(v))
 ```
 
-我们可以尝试用 RxJS 再来实现一版 Store:
+<br>
+
+我们可以尝试用 RxJS 再来实现一版 Store :
 
 ```javascript
 const createReactiveStore = (reducer, initialState) => {
@@ -70,7 +72,7 @@ const createReactiveStore = (reducer, initialState) => {
 }
 ```
 
- action 在进入 store 的 dispatch 函数之前要经过各个中间件的校验, 不符合条件的会通过 next(action) 传给下一个. 我们可以用另一个和 `reducer` 很相近的操作符 `reduce` 来搭建中间件之间的这个通道:
+ action 在进入 store 的 dispatch 函数之前要经过各个中间件的校验, 不符合条件的会通过 next(action) 传给下一个. 我们可以用另一个和 **reducer** 很相近的操作符 `reduce` 来搭建中间件之间的这个通道:
 
 ```javascript
 const reduxThunk = ({ dispatch, getState }) => next => action => {
@@ -106,9 +108,11 @@ export function compose(...fns) {
 }
 ```
 
-redux-thunk 对于复杂的异步操作支持不够, Netflix 的 `Redux-Observable` 借助 RxJS 解决了这个问题 ---- 
+<br>
 
-在 Redux-Observable 的 `epic` 里可以灵活地处理每一个action，也可以调动 store 中的方法. 不过 epic 返回的也是一个 `Observable`，Redux 可以在 epic 外订阅它，再对新产生的 action 进行 dispatch .
+**redux-thunk** 对于复杂的异步操作支持不够, **Netflix** 的 `Redux-Observable` 借助 RxJS 解决了这个问题 ---- 
+
+在 Redux-Observable 的 `epic` 里可以灵活地处理每一个 action ，也可以调动 store 中的方法. 不过 epic 返回的也是一个 *Observable*，Redux 可以在 epic 外订阅它，再对新产生的 action 进行 dispatch .
 
 ```javascript
 const epic = (action$, store) => {
@@ -126,7 +130,7 @@ const epic = (action$, store) => {
 };
 ```
 
-对 Rxjs 项目测试时就利用了这种 epic 模式将一些业务逻辑之外的代码隔离在了 "epic" 函数之外.
+对 Rxjs 项目测试时就利用了这种 'epic' 模式将一些业务逻辑之外的代码隔离在了 'epic' 函数之外.
 
 <img src="http://img.wwery.com/tourist/a13320109095059.jpg" width="500"/>
 
@@ -158,19 +162,23 @@ describe('Counter', () => {
 });
 ```
 
-Flutter 也有类似的模式 ---- Business Logic Component. 
+<br>
 
-Dart 内置了两种对异步的支持: Future的 `async + await` 和 Stream 的 `async* + yield`. 
+**Flutter** 也有类似的模式 ---- Bloc (Business Logic Component). 
+
+Dart 内置了两种对异步的支持: Future 的 `async + await` 和 Stream 的 `async* + yield`. 
 
 图中做为生产者的 sink 可以向 Bloc 内部用来监听生产者的 StreamController 创建的 stream 传输数据; 再由另一个 stream 作为观察者将处理好的数据传给它的 StreamBuilder 并随之更新这个部件.
 
 <img src="https://upload-images.jianshu.io/upload_images/4044518-e2efb6e9dc3c1dbe.png?imageMogr2/auto-orient/strip|imageView2/2/w/561" width="500" />
 
-Stream 具备 yield(迭代器模式) 和 listen(观察者模式) , 也可以称得上 observable , RxDart 正是基于 Stream 进行的封装与扩展.
+Stream 具备 yield(迭代器模式) 和 listen(观察者模式) , 也可以称得上 Observable , RxDart 正是基于 Stream 进行的封装与扩展.
 
 迭代器能够遍历一个复杂的数据集合(数组, 树形结构, 单向链表), 它提供的通用接口(getCurrent, moveToNext, isDone)让使用者不必关心这个数据集合是如何实现的; 而迭代器结合了观察者模式之后, 使用者甚至无需关心如何拉取数据、数据是同步还是异步产生的, 因为订阅了 publisher 之后数据会自动推送给 observer .
 
-最后对比一下 react hooks, 其实可以说它的作用也是 `分治` , 而不是 `重用` .
+<br>
+
+最后再想一想 react hooks, 我们是不是也可以说, 它的作用不是 **重用**, 而是 **分治**.
 
 
 
