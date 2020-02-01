@@ -31,7 +31,7 @@ class Store<A: ActionType, S: StateType, C: CommandType> {
 ```
 
 ```swift
-  // reducer 可以让单向数据流动的函数式 controller 的测试变得很容易.
+  // reducer 将单向数据流动的函数式 controller 的测试变得很容易.
   let initState = TableViewController.State()
   let state = controller.reducer(initState, .updateText(text: "123")).state
   XCTAssertEqual(state.text, "123")
@@ -47,13 +47,14 @@ Rx.Observable.from([1, 2]).pipe(
   .subscribe(v => console.log(v))
 ```
 
-<br />
+<br/>
 
 我们可以尝试用 RxJS 再来实现一版 Store :
 
 ```javascript
 const createReactiveStore = (reducer, initialState) => {
-  // Subject 和 useRef 作用很像: 以 interval 为例, 如果你希望不同的subscriber或者不同周期的组件使用同一个定时器源.
+  // Subject 和 useRef 作用很像: 以 interval 为例, 
+  // 如果你希望不同的subscriber或者不同周期的组件使用同一个定时器源.
   const action$ = new Subject();
   let currentState = initialState;
   // scan(reducer): scan 对比 reduce 的优势是可以随时获取当前最新的状态供 getState 调用
@@ -73,10 +74,11 @@ const createReactiveStore = (reducer, initialState) => {
 }
 ```
 
- action 在进入 Store 的 dispatch 函数之前要经过各个中间件的校验, 不符合条件的会通过 next(action) 往下传. 我们可以用 reduce 来搭建这个中间件之间的通道:
+ action 在进入 Store 的 dispatch 函数之前要经过各个中间件的校验, 不符合条件的会通过 next(action) 往下传. 我们可以用与 scan 相近的操作符 reduce 来搭建这个中间件之间的通道:
 
 ```javascript
-//中间件需要把符合条件的action直接dispatch出去, 不符合的next(action), 所以dispatch和next=>action=>{}都要作为参数传进来
+// 中间件需要把符合条件的 action 直接 dispatch 出去, 不符合的 next(action), 
+// 所以 dispatch 和 nex t=> action => {} 都需要作为参数传进来
 const reduxThunk = ({ dispatch, getState }) => next => action => {
   if (typeof action === 'function') {
     return action(dispatch, getState)
@@ -86,13 +88,13 @@ const reduxThunk = ({ dispatch, getState }) => next => action => {
 ```
 
 ```javascript
-//搭建通道 compose
+// 搭建通道 compose
 export function compose(...fns) {
   if (fns.length === 0) return arg => arg
   if (fns.length === 1) return fns[0]
-  // 数组fns[next=>action=>{}]经过 reduce 返回的dispatch是最上游的 action => {}, 
-  // 它的参数next正好是下一个中间件cur的返回值action => {}, 这样action的通道就打通了.
-  return fns.reduce((res, cur) => (...args) => res(cur(...args))) //args就是dispatch
+  // 数组fns[next=>action=>{}]经过 reduce 返回的 dispatch 是最上游的 action => {}, 
+  // 它的参数 next 正好是下一个中间件 cur 的返回值 action => {}, 这样 action 的通道就打通了.
+  return fns.reduce((res, cur) => (...args) => res(cur(...args))) // args 就是 dispatch
 }
 
 export function applyMiddleware(...middlewares) {
@@ -110,7 +112,7 @@ export function applyMiddleware(...middlewares) {
 }
 ```
 
-<br />
+<br/>
 
 **redux-thunk** 对于复杂的异步操作支持不够, **Netflix** 的 `Redux-Observable` 借助 RxJS 可以解决这个问题 ---- 
 
@@ -132,7 +134,7 @@ const epic = (action$, store) => {
 };
 ```
 
-对 RxJS 项目测试时就利用了类似这种 'epic' 的模式将一些与测试无关的、业务逻辑之外的代码隔离在了 'epic' 函数之外.
+对 RxJS 项目测试时就利用了类似这种 'epic' 的模式, 将一些与测试无关的、业务逻辑之外的代码隔离在了 'epic' 函数之外.
 
 <img src="http://img.wwery.com/tourist/a13320109095059.jpg" width="500"/>
 
