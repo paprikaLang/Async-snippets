@@ -2,7 +2,7 @@
 
 <img src="https://onevcat.com/assets/images/2017/view-controller-states.svg" width="600"/>
 
-这个 `Store` 里面的逻辑和 **Redux** 的 `createStore` 是一样的.
+`Store` 里面的逻辑和 **Redux** 的 `createStore` 是一样的.
 
 ```swift
 class Store<A: ActionType, S: StateType, C: CommandType> {
@@ -31,36 +31,45 @@ class Store<A: ActionType, S: StateType, C: CommandType> {
     }
 }
 ```
+
+
+<br>
+
+
+
 > 函数式容易编写「可预测」的代码 ---- cyclejs
 
 ```swift
+  // 函数式 controller 的测试
   let initState = TableViewController.State()
   let state = controller.reducer(initState, .updateText(text: "123")).state
   XCTAssertEqual(state.text, "123")
 ```
 
-`reducer: (_ state: S, _ action: A) -> (S, C?)`  和 **RxJS** 中的 `scan` 操作符是非常契合的:
+`reducer: (_ state: S, _ action: A) -> (S, C?)`  与 **RxJS** 中的 `scan` 操作符非常契合:
 
 ```javascript
-//scan 的参数 state 是一个累积的变量，10 为 state 的默认初始值, action 为上游传下来的[1,2].
-//reduce 操作符只能得到一个 action 的最终累积值, 如果 action 无休止这个值就永远得不到. 
-//scan 则可以随时得到新的累积值, 在RxJS应用中可做为'全局变量'来维持状态，并且各 scan 内部的状态不会互相干扰.
+//scan 的参数 state 是一个经过 action 不断改变而累积的变量，10 为 state 的默认初始值.
+//reduce 操作符只能得到一个 state 的最终累积值, 如果这个流无休止, 那最终的值就永远得不到; 
+//而 scan 则可以随时得到新的累积值, 在RxJS应用中可做为'全局变量'来维持状态，并且各 scan 内部的状态不会互相干扰.
 Rx.Observable.from([1, 2]).pipe(
   scan((state, action) => state += action, 10)) 
   .subscribe(v => console.log(v))
 ```
 
+
 <br/>
 
-如果把 action 就看做是时间维度上的集合, 那 `action$.next(action)` + `action$.scan(reducer).do(state => { //getState })` 就是 `dispatch` 了.  RxJS 版 Store 如下:
+
+
+如果把 action 就看做是时间维度上的集合, `dispatch` 可以这样实现:
+
+`action$.next(action)` + `action$.scan(reducer).do(state => { //getState ...... })`.  RxJS 版 Store 如下:
 
 ```javascript
 const createReactiveStore = (reducer, initialState) => {
-  // Subject 和 useRef 作用很像: 确立唯一的一个
-  // 以 interval 为例, 确立之后不同的subscriber或者不同周期的组件使用的就都是同一个定时器了.
   const action$ = new Subject();
   let currentState = initialState;
-  // scan(reducer): scan 相比 reduce 的优势是可以随时获取最新的状态供 getState 调用
   const store$ = action$.startWith(initialState).scan(reducer).do(state => {
     currentState = state
   });
@@ -194,13 +203,14 @@ describe('Counter', () => {
 
 <img src="https://upload-images.jianshu.io/upload_images/4044518-e2efb6e9dc3c1dbe.png?imageMogr2/auto-orient/strip|imageView2/2/w/561" width="500" />
 
-<br/>
+
+<br>
 
 
 
 
 
-<br/>
+<br>
 
 最后再想一想 **react hooks** , 我们是不是也可以说, 它的作用其实不是 **重用** , 而是 **分治** 呢.
 
