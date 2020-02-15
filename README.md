@@ -1,6 +1,10 @@
 
 > 函数式容易编写「可预测」的代码, 响应式容易编写「可分离」的代码 ---- cyclejs.cn
 
+<br/>
+
+&nbsp; 
+
 ## 一 可预测的函数式
 
 喵神用 Swift 实现了[[单向数据流动的函数式 View Controller]]( https://onevcat.com/2017/07/state-based-viewcontroller/). 
@@ -54,11 +58,7 @@ Rx.Observable.from([1, 2]).pipe(
   scan((state, action) => state += action, 10)) 
   .subscribe(v => console.log(v))
 ```
-
-
-<br>
-
-
+&nbsp; 
 
 如果再把 Redux 的 action 看做是时间维度上的集合也就是 RxJS 的流, 那么 `dispatch` 就可以这样实现了:
 
