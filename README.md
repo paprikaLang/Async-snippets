@@ -13,11 +13,8 @@
 
 <img src="https://onevcat.com/assets/images/2017/view-controller-states.svg" width="600"/>
 
-图中 `Store` 的逻辑和 **Redux** 的 `createStore` 是一样的, 控制数据可追踪、可预测的关键在于这个纯函数 ----
-
-  `reducer: (_ state: S, _ action: A) -> (S, C?)`
-
 ```swift
+// 图可以说就是 redux , 这个 Store 的实现和 createStore 也几乎一样.
 class Store<A: ActionType, S: StateType, C: CommandType> {
     let reducer: (_ state: S, _ action: A) -> (S, C?)
     var subscriber: ((_ state: S, _ previousState: S, _ command: C?) -> Void)?
@@ -44,37 +41,59 @@ class Store<A: ActionType, S: StateType, C: CommandType> {
     }
 }
 ```
+纯函数 reducer 的可预测性, 带来的是它的可测试性和可维护性. 
+
+```
+// redux 的 reducer 没有 command 来触发副作用.
+lazy var reducer: (State, Action) -> (state: State, command: Command?) = {
+    [weak self] (state: State, action: Action) in
+    
+    var state = state
+    var command: Command? = nil
+
+    switch action {
+    case .updateText(let text):
+        state.text = text
+    // ...
+    case .loadToDos:
+        command = Command.loadToDos { data in
+            // command 只是触发异步请求操作, 不会更改 state, 还是要再发送一次 action 的.
+            self?.store.dispatch(.addToDos(items: data))
+        }
+    }
+    return (state, command)
+}
+```
+
+`Command.loadToDos` 的 handler 充当了天然的 `stub`, 通过一组 dummy 数据 (["2", "3"]) 就能检查 store 中的状态是否符合预期，同时又以同步的方式测试了异步加载的过程.
 
 ```swift
-  // 测试
-  let initState = TableViewController.State()
-  let state = controller.reducer(initState, .updateText(text: "123")).state
-  XCTAssertEqual(state.text, "123")
+    let initState = TableViewController.State()
+    let (_, command) = controller.reducer(initState, .loadToDos)
+    XCTAssertNotNil(command)
+    switch command! {
+    case .loadToDos(let handler):
+        handler(["2", "3"])
+        XCTAssertEqual(controller.store.state.dataSource.todos, ["2", "3"])
+    }
 ```
+
 &nbsp; 
 
-这个 `reducer` 实现的原理和 **RxJS** 的 `scan` 操作符是一样的:
+Redux 的 `reducer` 更契合 **RxJS** 的 `scan` 操作符. 在 RxJS 项目中 scan 也是用来保存和维持当前状态的，并且各 scan 内部的状态彼此互不干扰.
 
 ```javascript
-//scan 的参数 state 是一个受 action 作用而不断累计的变量，10 为 state 的默认初始值.
-//scan 可以随时得到 state 的累计结果, 所以在RxJS应用中可做为'全局变量'来保存当前状态，且各 scan 内部的状态不会互相干扰.
-//reduce 与 scan 的区别是它只能得到 state 的最终累计值, 如果 action 是无休止的, 那么这个最终的值就永远无法得到; 
+//scan 的参数 state 也是一个受 action 作用而不断累计的变量，10 为 state 的默认初始值.
+//scan 可以得到 state 的每个累计值, 而 reduce 只能得到一个最终累计值, 如果上游是无休止的, 那这个最终值就永远无法得到; 
 Rx.Observable.from([1, 2]).pipe(
   scan((state, action) => state += action, 10)) 
   .subscribe(v => console.log(v))
 ```
 
-如果再把 Redux 的 action 看做是时间维度上的集合也就是 RxJS 的流, 那么 `dispatch` 就可以这样实现了:
+如果再把 Redux 的 action 看做是时间维度上的集合也就是 RxJS 的流, 那么 Store 其实可以这样实现了:
 
 ```javascript
-    action$.next(action)   ==>   action$.scan(reducer).do(state => { //getState ...... })
-```
-
-&nbsp;
-
-完整的 RxJS 版 Store 实现如下:
-
-```javascript
+// RxJS 版 Store
 const createReactiveStore = (reducer, initialState) => {
   const action$ = new Subject();
   let currentState = initialState;
@@ -96,9 +115,10 @@ const createReactiveStore = (reducer, initialState) => {
 
 &nbsp;
 
-action 进入 dispatch 前会先被中间件流水线校验处理, 中间件之间既不是时间维度上的集合stream, 也不是空间维度上的集合array, 它们是如何连接起来的呢. 
+redux 的中间件既不是时间维度上的集合stream, 也不是空间维度上的集合array, 但它们可以通过函数参数和返回值在彼此一进一出的地方连接起来. 
 
 ```javascript
+// 简单实现一下 redux-thunk
 const reduxThunk = ({ dispatch, getState }) => next => action => {
   if (typeof action === 'function') {
     return action(dispatch, getState)
@@ -106,21 +126,21 @@ const reduxThunk = ({ dispatch, getState }) => next => action => {
   return next(action)
 }
 
-
+//抽象化这个 reduxThunk 中间件.
 const reduxThunk = ({ dispatch, getState }) => next => action => {
-  // reduxThunk 的校验、处理动作
+  // reduxThunk 的校验和处理动作
   ... ...
   return action => {
-    // 下游 reduxSaga 的校验、处理动作
+    // 下游 reduxSaga 的校验和处理动作
     ... ...
-    return next(action) // 这里, reduxSaga 的 next(action) 可以继续往下展开
-    // 这个闭包从外面的结构看是 reduxThunk 的参数 next ,从里面的内容看则是 reduxSaga(next) 的返回值
+    return next(action) // 这里, reduxSaga 的 next(action) 可以继续往下游展开直到 dispatch 那里.
+    // 这个闭包从外面的结构看是 reduxThunk 的参数 next ,从里面的内容看则是 reduxSaga(next) 的返回值.
   }
 }
 ```
 
 ```javascript
-// 用 reduce 来实现 reduxThunk(reduxSaga( ... ))
+// 用 reduce 来实现中间件的连接
 export function compose(...fns) {
   if (fns.length === 0) return arg => arg
   if (fns.length === 1) return fns[0]
