@@ -1,8 +1,13 @@
+
+> 函数式容易编写「可预测」的代码, 响应式容易编写「可分离」的代码 ---- cyclejs.cn
+
+## 一 可预测的函数式
+
 喵神用 Swift 实现了[[单向数据流动的函数式 View Controller]]( https://onevcat.com/2017/07/state-based-viewcontroller/). 
 
 <img src="https://onevcat.com/assets/images/2017/view-controller-states.svg" width="600"/>
 
-`Store` 的逻辑和 **Redux** 的 `createStore` 是一样的.
+图中 `Store` 的逻辑和 **Redux** 的 `createStore` 是一样的, 控制数据可追踪、可预测的关键在于纯函数 `reducer: (_ state: S, _ action: A) -> (S, C?)`.
 
 ```swift
 class Store<A: ActionType, S: StateType, C: CommandType> {
@@ -32,43 +37,37 @@ class Store<A: ActionType, S: StateType, C: CommandType> {
 }
 ```
 
-
-<br>
-
-
-
-> 函数式容易编写「可预测」的代码 ---- cyclejs
-
 ```swift
-  // 函数式 controller 的测试
+  // 关于纯函数 reducer 的测试
   let initState = TableViewController.State()
   let state = controller.reducer(initState, .updateText(text: "123")).state
   XCTAssertEqual(state.text, "123")
 ```
 
-`reducer: (_ state: S, _ action: A) -> (S, C?)`  与 **RxJS** 中的 `scan` 操作符非常契合:
+这个 `reducer` 实现的原理和 **RxJS** 的 `scan` 操作符是一样的:
 
 ```javascript
-//scan 的参数 state 是一个受 action 作用不断累积沉淀的变量，10 为 state 的默认初始值.
-//scan 可以随时得到 state 的累积值, 在RxJS应用中可做为'全局变量'来维持状态，并且各 scan 内部的状态不会互相干扰.
-//reduce 与 scan 的区别是它只能得到一个 state 的最终累积值, 如果 action 是无休止的, 那这个最终的值也永远不会得到; 
+//scan 的参数 state 是一个受 action 作用而不断累计的变量，10 为 state 的默认初始值.
+//scan 可以随时得到 state 的累计结果, 所以在RxJS应用中可做为'全局变量'来保存当前状态，且各 scan 内部的状态不会互相干扰.
+//reduce 与 scan 的区别是它只能得到 state 的最终累计值, 如果 action 是无休止的, 那么这个最终的值就永远无法得到; 
 Rx.Observable.from([1, 2]).pipe(
   scan((state, action) => state += action, 10)) 
   .subscribe(v => console.log(v))
 ```
 
 
-<br/>
+<br>
 
 
 
-如果把 Redux 的 action 也看做是时间维度上的集合, 那么 `dispatch` 就可以这样实现:
+如果再把 Redux 的 action 看做是时间维度上的集合也就是 RxJS 的流, 那么 `dispatch` 就可以这样实现了:
 
-`action$.next(action)`   ==>   `action$.scan(reducer).do(state => { //getState ...... })`
-
-RxJS 版 Store 如下:
+```
+action$.next(action)   ==>   action$.scan(reducer).do(state => { //getState ...... })
+```
 
 ```javascript
+//RxJS 版的 Store:
 const createReactiveStore = (reducer, initialState) => {
   const action$ = new Subject();
   let currentState = initialState;
@@ -88,11 +87,9 @@ const createReactiveStore = (reducer, initialState) => {
 }
 ```
 
-action 在进入 Store 的 dispatch 函数之前还会经历各中间件的校验. 
+action 进入 dispatch 前会先被流水线一样的中间件加工处理, 中间件之间既不是时间维度上的集合stream, 也不是空间维度上的集合array, 它们是如何连接起来的呢. 
 
 ```javascript
-// 中间件需要把符合条件的 action 直接 dispatch 出去, 不符合的再 next(action) 向下传递 
-// 所以 dispatch 和 next: action => {} 都需要作为参数传进来.
 const reduxThunk = ({ dispatch, getState }) => next => action => {
   if (typeof action === 'function') {
     return action(dispatch, getState)
@@ -101,24 +98,23 @@ const reduxThunk = ({ dispatch, getState }) => next => action => {
 }
 ```
 
-抽象分析一下中间件函数的内部结构:
+抽象分析一下上面 reduxThunk 中间件的内部结构, 函数可以通过参数和返回值相互连接起来:
 
 ```javascript
 const reduxThunk = ({ dispatch, getState }) => next => action => {
-  // reduxThunk 的校验动作
+  // reduxThunk 的校验、处理动作
   ... ...
   return action => {
-    // 下游 reduxSaga 的校验动作
+    // 下游 reduxSaga 的校验、处理动作
     ... ...
     return next(action) // 这里, reduxSaga 的 next(action) 可以继续往下展开
     // 这个闭包从外面的结构看是 reduxThunk 的参数 next ,从里面的内容看则是 reduxSaga(next) 的返回值
-    // 即 reduxThunk(reduxSaga( ... )) 
   }
 }
 ```
 
 ```javascript
-// 用 reduce 实现中间件的连接: reduxThunk(reduxSaga( ... ))
+// 用 reduce 来实现 reduxThunk(reduxSaga( ... ))
 export function compose(...fns) {
   if (fns.length === 0) return arg => arg
   if (fns.length === 1) return fns[0]
@@ -141,11 +137,13 @@ export function applyMiddleware(...middlewares) {
 }
 ```
 
-如果把中间件的检验筛选看作是一种过滤类操作符的行为, 那么像回压控制类操作符(例如throttle和window)，还有可以调用 AJAX 请求的操作符(例如mergeMap和switchMap)等待这些复杂的异步处理逻辑应该都可以借助 RxJS 插入到 redux 处理 action 的流程之中. 恰好 netflix 的 Redux-Observable 就是这样一款中间件.
+## 二 可分离的响应式
+
+如果把中间件的检验筛选看作是一种过滤类操作符的行为, 那么像回压控制类操作符( throttle 和 window )，还有可以调用 AJAX 请求的操作符( mergeMap 和 switchMap)等等这些处理异步操作的复杂功能应该都可以借助 RxJS 插入到 redux 处理 action 的流程之中. 恰好 netflix 的 Redux-Observable 就是这样一款中间件.
 
 
 ```javascript
-//epic是Redux-Observable最核心的函数: 接收一个observable, 再返回一个observable, 内部则是中间件的业务逻辑.
+//epic 是Redux-Observable最核心的函数: 接收一个observable, 再返回一个observable, 内部则是中间件的logic.
 const epic = (action$, store) => {
   return action$
     .filter(
@@ -170,10 +168,8 @@ const store = createStore(
 );
 ```
 
-> 响应式容易编写「可分离」的代码  ---- cyclejs
 
-
-RxJS 项目测试时也会用到 `epic` 函数这样的模式将一些与业务逻辑无关的代码隔离在需要测试的纯函数之外.
+RxJS 项目在测试时也会用到 `epic` 函数这样的模式将一些与外部逻辑隔离在 "epic" 函数之外, 来提高可测试性.
 
 <img src="http://img.wwery.com/tourist/a13320109095059.jpg" width="500"/>
 
@@ -192,14 +188,15 @@ const observer = {
 const counterPipe = (plus$, minus$) => {
   return Rx.Observable.merge(plus$.mapTo(1), minus$.mapTo(-1))
           .scan((count, delta) => count + delta, 0)
-}
-// 在 epic 模式下才会提高 RxJS 代码的可测试性.
-/* 可测试性体现在如下方面:
+} 
+/*
+可测试性体现在如下方面:
 ·可以一次只测试一个功能。 
 ·可以很容易制造各种测试前提条件。
 ·可以很容易提高代码的测试覆盖率。
 ·可以很容易模拟被测对象依赖的模块。
 */
+// epic 模式可以提高 RxJS 代码的可测试性
 describe('Counter', () => {
   test('should add & subtract count on source', () => {
     const plus =     '^-a------|'; 
@@ -215,11 +212,12 @@ describe('Counter', () => {
 <br>
 
 
-**Flutter** 的 `epic` 模式是 **Bloc (Business Logic Component)**. 
+**Flutter** 也有自己的 `epic` 模式 ---- **Bloc (Business Logic Component)**. 
 
 **Dart** 内置了两种对异步的支持: Future 的 `async + await` 和 Stream 的 `async* + yield`.(Stream 具备了 Observable 所需的 迭代器模式 `yield` 和 观察者模式 `listen` ).
 
-> 所谓迭代器模式就是通过一些通用接口(getCurrent, moveToNext, isDone)来遍历一些复杂的、未知的数据集合(数组, 树形结构, 单向链表); 而结合了观察者模式之后, 就不需要这些**拉取**数据的接口了, 因为订阅了 publisher 之后, 无论数据是同步还是异步产生的,都会自动**推送**给 observer .
+> 所谓迭代器模式就是通过一些通用接口(getCurrent, moveToNext, isDone)来遍历一些复杂的、未知的数据集合; 观察者模式则不需要这些**拉取**数据的接口, 因为订阅了 publisher 之后, 无论数据是同步还是异步产生的,都会自动**推送**给 observer .
+
 
 图中做为生产者的 sink 可以向 `Bloc` 内部用于监听生产者的 stream 传输数据; 再由另一个 stream (不同 StreamController 创建的)作为观察者将处理好的数据传给它的 StreamBuilder 并同步更新这个部件.
 
