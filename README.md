@@ -7,13 +7,13 @@
 
 &nbsp; 
 
-#### 一 可预测的函数式
+## 一 可预测的函数式
 
 喵神用 Swift 实现了[[单向数据流动的函数式 View Controller]]( https://onevcat.com/2017/07/state-based-viewcontroller/). 
 
 <img src="https://onevcat.com/assets/images/2017/view-controller-states.svg" width="600"/>
 
-图中 `Store` 的逻辑和 **Redux** 的 `createStore` 是一样的, 控制数据可追踪、可预测的关键在于这个纯函数 
+图中 `Store` 的逻辑和 **Redux** 的 `createStore` 是一样的, 控制数据可追踪、可预测的关键在于这个纯函数 ----
 
   `reducer: (_ state: S, _ action: A) -> (S, C?)`
 
@@ -46,7 +46,7 @@ class Store<A: ActionType, S: StateType, C: CommandType> {
 ```
 
 ```swift
-  // 关于纯函数 reducer 的测试
+  // 测试
   let initState = TableViewController.State()
   let state = controller.reducer(initState, .updateText(text: "123")).state
   XCTAssertEqual(state.text, "123")
@@ -72,7 +72,7 @@ Rx.Observable.from([1, 2]).pipe(
 
 &nbsp;
 
-完整的 RxJS 版的 Store 实现如下:
+完整的 RxJS 版 Store 实现如下:
 
 ```javascript
 const createReactiveStore = (reducer, initialState) => {
@@ -96,7 +96,7 @@ const createReactiveStore = (reducer, initialState) => {
 
 &nbsp;
 
-action 进入 dispatch 前会先被中间件流水线校验处理, 中间件之间既不是时间维度上的集合stream, 也不是空间维度上的集合array, 它们却可以连接起来传递 action. 
+action 进入 dispatch 前会先被中间件流水线校验处理, 中间件之间既不是时间维度上的集合stream, 也不是空间维度上的集合array, 它们是如何连接起来的呢. 
 
 ```javascript
 const reduxThunk = ({ dispatch, getState }) => next => action => {
@@ -105,11 +105,8 @@ const reduxThunk = ({ dispatch, getState }) => next => action => {
   }
   return next(action)
 }
-```
 
-抽象分析一下上面的简易版 reduxThunk 中间件, 函数是通过参数和返回值串联在一起的:
 
-```javascript
 const reduxThunk = ({ dispatch, getState }) => next => action => {
   // reduxThunk 的校验、处理动作
   ... ...
