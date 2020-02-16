@@ -80,11 +80,11 @@ lazy var reducer: (State, Action) -> (state: State, command: Command?) = {
 
 &nbsp; 
 
-Redux 的 `reducer` 更契合 **RxJS** 的 `scan` 操作符. 在 RxJS 项目中 scan 也是用来保存和维持当前状态的，并且各 scan 内部的状态彼此互不干扰.
+Redux 的 `reducer` 没有 `Command` , 更契合 **RxJS** 的 `scan` 操作符. 在 RxJS 项目中 scan 也是用来保存和维持当前状态的，并且各 scan 内部的状态彼此互不干扰.
 
 ```javascript
 //scan 的参数 state 也是一个受 action 作用而不断累计的变量，10 为 state 的默认初始值.
-//scan 可以得到 state 的每个累计值, 而 reduce 只能得到一个最终累计值, 如果上游是无休止的, 那这个最终值就永远无法得到; 
+//scan 可以得到 state 的每个累计值; 而 reduce 只能得到一个最终累计值, 如果它的上游是无休止的, 那这个最终值就永远无法得到; 
 Rx.Observable.from([1, 2]).pipe(
   scan((state, action) => state += action, 10)) 
   .subscribe(v => console.log(v))
@@ -115,10 +115,47 @@ const createReactiveStore = (reducer, initialState) => {
 
 &nbsp;
 
-redux 的中间件既不是时间维度上的集合stream, 也不是空间维度上的集合array, 但它们可以通过函数参数和返回值在彼此一进一出的地方连接起来. 
+RxJS 还有过滤类操作符(filter), 回压控制类操作符( throttle 和 window )，调用 AJAX 请求的操作符( mergeMap 和 switchMap) ... , netflix 开源的 redux 中间件 `Redux-Observable` 可以将 RxJS 这些处理复杂异步操作的功能都插入到 redux 处理 action 的流程之中. 
 
 ```javascript
-// 简单实现一下 redux-thunk
+const epic = (action$, store) => {
+  return action$
+    .filter( action => 
+      (action.type === ActionTypes.MINUS || action.type === ActionTypes.PLUS)
+    )
+    .delay(1000)
+    .map(action => {
+      const count = store.getState().count;
+      if(count ...) { 
+        ... 
+        return {type: 'plus'};
+      } else { ... }
+      return {type: 'nothing'};
+    });
+};
+
+import {createEpicMiddleware} from 'redux-observable'; 
+import epic from './Epic';
+const epicMiddleware = createEpicMiddleware(epic);
+const store = createStore(
+  reducer,
+  initValues,
+  applyMiddleware(epicMiddleware)
+);
+```
+
+`applyMiddleware` 的参数可以有多个, Redux 需要订阅 `epic` 函数返回的新 action$ 并直接 dispatch 出去, 不符合 filter 过滤条件的需要通过 next(action) 继续向下传递. 我们来简单实现这些过程:
+
+```javascript
+// 自定义一个中间件
+const reduxArray = ({ dispatch, getState }) => next => action => {
+  if (Array.isArray(action)) {
+    return action.forEach(act => dispatch(act))
+  }
+  return next(action)
+}
+
+// reduxThunk
 const reduxThunk = ({ dispatch, getState }) => next => action => {
   if (typeof action === 'function') {
     return action(dispatch, getState)
@@ -131,20 +168,23 @@ const reduxThunk = ({ dispatch, getState }) => next => action => {
   // reduxThunk 的校验和处理动作
   ... ...
   return action => {
-    // 下游 reduxSaga 的校验和处理动作
+    // 下游 reduxArray 的校验和处理动作
     ... ...
-    return next(action) // 这里, reduxSaga 的 next(action) 可以继续往下游展开直到 dispatch 那里.
-    // 这个闭包从外面的结构看是 reduxThunk 的参数 next ,从里面的内容看则是 reduxSaga(next) 的返回值.
+    return next(action) // 这里, reduxArray 的 next(action) 可以继续往下游展开直到 dispatch 的 action => {}.
+    // 这个闭包从外面的结构看是 reduxThunk 的参数 next ,从里面的内容看则是 reduxArray(...) 的返回值.
+    // 也就是这样 reduxThunk(reduxArray(...))
   }
 }
 ```
 
 ```javascript
-// 用 reduce 来实现中间件的连接
+// applyMiddleware 可以用 reduce 来连接参数中的这些中间件实现 reduxThunk(reduxArray(...)).
 export function compose(...fns) {
   if (fns.length === 0) return arg => arg
   if (fns.length === 1) return fns[0]
-  // 数组 fns 是 [next=>action=>{}], args 是 dispatch
+  
+  // 数组 fns 是 [ next => actio n=> { } ]
+  // args 是 dispatch
   return fns.reduce((res, cur) => (...args) => res(cur(...args))) 
 }
 
@@ -169,40 +209,8 @@ export function applyMiddleware(...middlewares) {
 
 ## 二 可分离的响应式
 
-&nbsp;
 
-如果把中间件的检验筛选看作是一种过滤类操作符的行为, 那么像回压控制类操作符( throttle 和 window )，还有可以调用 AJAX 请求的操作符( mergeMap 和 switchMap)等等这些处理异复杂步操作的功能应该都可以借助 RxJS 插入到 redux 处理 action 的流程之中. 恰好 netflix 的 Redux-Observable 就是这样一款中间件.
-
-
-```javascript
-//epic 是Redux-Observable最核心的函数: 接收一个observable, 再返回一个observable, 内部则是中间件的logic.
-const epic = (action$, store) => {
-  return action$
-    .filter(
-      action => (action.type === ActionTypes.MINUS ||
-        action.type === ActionTypes.PLUS)
-    )
-    .delay(1000)
-    .map(action => {
-      const count = store.getState().count;
-      if(count ...) { ... return {type: 'plus'}} ... ...
-      return {type: 'nothing'};
-    });
-};
-
-import {createEpicMiddleware} from 'redux-observable'; 
-import epic from './Epic';
-const epicMiddleware = createEpicMiddleware(epic);
-const store = createStore(
-  reducer,
-  initValues,
-  applyMiddleware(epicMiddleware)
-);
-```
-
-&nbsp;
-
-RxJS 项目在测试时也会用到 `epic` 函数这样的模式将一些与外部逻辑隔离在 "epic" 函数之外, 来提高可测试性.
+`epic` 是 Redux-Observable 最核心的函数: 接收一个 observable , 再返回一个 observable, 内部则是中间件的业务逻辑. RxJS 项目在测试时也会用到这样的模式将一些无关的外部逻辑隔离在 "epic" 函数之外, 来提高可测试性.
 
 <img src="http://img.wwery.com/tourist/a13320109095059.jpg" width="500"/>
 
@@ -224,12 +232,11 @@ const counterPipe = (plus$, minus$) => {
 } 
 /*
 可测试性体现在如下方面:
-·可以一次只测试一个功能。 
-·可以很容易制造各种测试前提条件。
-·可以很容易提高代码的测试覆盖率。
-·可以很容易模拟被测对象依赖的模块。
+·可以一次只测试一个功能 
+·可以很容易制造各种测试前提条件
+·可以很容易提高代码的测试覆盖率
+·可以很容易模拟被测对象依赖的模块
 */
-// epic 模式可以提高 RxJS 代码的可测试性
 describe('Counter', () => {
   test('should add & subtract count on source', () => {
     const plus =     '^-a------|'; 
@@ -243,17 +250,15 @@ describe('Counter', () => {
 
 &nbsp;
 
-&nbsp;
-
 **Flutter** 也有自己的 `epic` 模式 ---- **Bloc (Business Logic Component)**. 
 
 **Dart** 内置了两种对异步的支持: Future 的 `async + await` 和 Stream 的 `async* + yield`.(Stream 具备了 Observable 所需的 迭代器模式 `yield` 和 观察者模式 `listen` ).
 
-> 所谓迭代器模式就是通过一些通用接口(getCurrent, moveToNext, isDone)来遍历一些复杂的、未知的数据集合; 观察者模式则不需要这些**拉取**数据的接口, 因为订阅了 publisher 之后, 无论数据是同步还是异步产生的,都会自动**推送**给 observer .
+> 所谓迭代器模式就是通过一些通用接口(getCurrent, moveToNext, isDone)来遍历一些复杂的、未知的数据集合; 观察者模式不需要这些**拉取**数据的接口, 因为订阅了 publisher 之后, 无论数据是同步还是异步产生的, 都会自动**推送**给 observer .
 
 &nbsp;
 
-图中做为生产者的 sink 可以向 `Bloc` 内部用于监听生产者的 stream 传输数据; 再由另一个 stream (不同 StreamController 创建的)作为观察者将处理好的数据传给它的 StreamBuilder 并同步更新这个部件.
+图中做为生产者的 sink 可以向 `Bloc` 内部监听它的 stream 传输数据; 再由另一个 stream (不同 StreamController 创建的)作为观察者将处理好的数据传给它的 StreamBuilder 并同步更新这个部件.
 
 <img src="https://upload-images.jianshu.io/upload_images/4044518-e2efb6e9dc3c1dbe.png?imageMogr2/auto-orient/strip|imageView2/2/w/561" width="500" />
 
