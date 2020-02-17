@@ -7,13 +7,14 @@
 
 ## 一 可预测的函数式
 
-这是一个用 swift 参照 Redux 构建出来的[[单向数据流动的函数式 View Controller]]( https://onevcat.com/2017/07/state-based-viewcontroller/). 
+这是一个移动端用 Redux 的状态管理方式构建出来的[[单向数据流动的函数式 View Controller]]( https://onevcat.com/2017/07/state-based-viewcontroller/). 
 
 <img src="https://onevcat.com/assets/images/2017/view-controller-states.svg" width="600"/>
 
 ```swift
-// Swift 版 Store (可以对照 redux 的 createStore)
+// Store 可以对照着 redux 的 createStore 来看
 class Store<A: ActionType, S: StateType, C: CommandType> {
+    // reducer 是驱动数据单向流动的正负极
     let reducer: (_ state: S, _ action: A) -> (S, C?)
     var subscriber: ((_ state: S, _ previousState: S, _ command: C?) -> Void)?
     var state: S
@@ -39,7 +40,7 @@ class Store<A: ActionType, S: StateType, C: CommandType> {
 }
 ```
 
-从图中可以看出, 驱动数据单向流动的正负极是 Store 中的 `reducer` 函数.
+整个构建的核心, 即驱动数据单向流动的正负极是 Store 中的 `reducer` 函数.
 
 ```swift
 lazy var reducer: (State, Action) -> (state: State, command: Command?) = {
@@ -62,11 +63,11 @@ lazy var reducer: (State, Action) -> (state: State, command: Command?) = {
 }
 ```
 
-更新状态的 reducer 和更新 UI 的 stateDidChange 都是纯函数, 它们的可预测性直接提升了代码的可测试和可维护性. 
+从更新状态的 reducer 到更新 UI 的 stateDidChanged 都是可回溯、可预测的纯函数, 这样就提升了整个 View Controller 可测试和可维护性. 
 
 ```swift
   /*
-    `Command.loadToDos` 的 handler 充当了天然的 `stub`, 
+    测试中, `Command.loadToDos` 的 handler 充当了天然的 `stub`, 
     通过一组 dummy 数据 (["2", "3"]) 就能检查 store 中的状态是否符合预期，
     同时又以同步的方式测试了异步加载的过程.
   */
@@ -85,7 +86,6 @@ lazy var reducer: (State, Action) -> (state: State, command: Command?) = {
 Redux 的 `reducer` 没有触发副作用的 `Command` , 更契合 **RxJS** 中同样用来维护应用的状态的操作符 `scan((state, action) => state += action, 10)) ` , 如果把 action 看做是时间维度上的集合 action$ , 那么 Store 就可以这样实现了:
 
 ```javascript
-// RxJS 版 Store 
 const createReactiveStore = (reducer, initialState) => {
   const action$ = new Subject();
   let currentState = initialState;
@@ -111,7 +111,7 @@ const createReactiveStore = (reducer, initialState) => {
 
 &nbsp;
 
-RxJS 的过滤类操作符 filter , 回压控制类操作符 throttle 和 window ，调用 AJAX 请求的操作符 mergeMap 和 switchMap ...还可以做为支持复杂异步操作的中间件插入到 redux 处理 action 的流程之中. `Redux-Observable` 就是做的很好的一个.
+RxJS 还有过滤类操作符 filter , 回压控制类操作符 throttle 和 window ，调用 AJAX 请求的操作符 mergeMap 和 switchMap ...这些支持复杂异步操作的功能其实也可以插入到 redux 处理 action 的流程之中. `Redux-Observable` 就以中间件的形式实现了这个想法.
 
 ```javascript
 const epic = (action$, store) => {
@@ -140,18 +140,16 @@ const store = createStore(
 );
 ```
 
-createStore 函数其实还支持第三个参数, applyMiddleware 重写了 createStore 返回值中的 dispatch 函数, 使得 action 进入dispatch 之前要先经过了 `epic` 函数的处理.
+createStore 函数其实还支持第三个参数, applyMiddleware 重写了 createStore 返回的 dispatch 函数, 使得 action 进入 dispatch 之前要先经过 redux-observable 中间件 `epic` 函数的处理.
 
 ```javascript
-// 自定义一个中间件
+// 先设计两个中间件
 const reduxArray = ({ dispatch, getState }) => next => action => {
   if (Array.isArray(action)) {
     return action.forEach(act => dispatch(act))
   }
   return next(action)
 }
-
-// reduxThunk 中间件
 const reduxThunk = ({ dispatch, getState }) => next => action => {
   if (typeof action === 'function') {
     return action(dispatch, getState)
@@ -166,12 +164,12 @@ const reduxThunk = ({ dispatch, getState }) => next => action => {
   return action => {
     // 下游 reduxArray 的校验和处理动作
     ... ...
-    return next1(action) // 这个是reduxArray 的 next(action), 还可以继续往下游展开直到 dispatch 的 action => {}. 
+    return next1(action) // 这是reduxArray的, 还可以继续向下游展开直到 dispatch 的 action => {}. 
   }
 }
 ```
 
-applyMiddleware 实现的是: 中间件 reduxThunk 的返回值从外部看是 reduxThunk 的参数 next , 从内部看则是 reduxArray(next1) 的返回值, 并以此类推. 
+applyMiddleware 实现的是: 中间件 reduxThunk 的返回值从外部看是 reduxThunk 的参数 next , 从内部看则是 reduxArray(next1) 的返回值, 以此类推. 
 
 ```javascript
 export function compose(...fns) {
@@ -179,7 +177,7 @@ export function compose(...fns) {
   if (fns.length === 1) return fns[0]
   
   // 数组 fns 就是 middlewares:[ next => action=> { } ], args 是 dispatch
-  // reduce 可以实现上面推导出来的逻辑.
+  // reduce 可以实现applyMiddleware的套娃逻辑.
   return fns.reduce((res, cur) => (...args) => res(cur(...args))) 
 }
 
@@ -205,18 +203,7 @@ export function applyMiddleware(...middlewares) {
 ## 二 可分离的响应式
 
 
-回顾一下 Redux-Observable 的 `epic` 函数: 接收一个 observable , 再返回一个 observable, 内部则是中间件的业务逻辑. 
-
-```javascript
-const epic = (action$, store) => {
-  return action$
-    .filter( action => ...)
-    .map(action => {
-      ... ...
-      return {type: xxx };
-    });
-};
-```
+Redux-Observable 的 `epic` 函数: 接收一个 observable , 再返回一个 observable, 内部则是中间件的业务逻辑. 
 
 RxJS 项目在测试时也会用到这样的模式将一些无关的外部逻辑隔离在 "epic" 函数之外, 来提高代码的可测试性.
 
