@@ -14,7 +14,7 @@
 ```swift
 // Store 可以对照着 redux 的 createStore 来看
 class Store<A: ActionType, S: StateType, C: CommandType> {
-    // reducer 是驱动数据单向流动的正负极
+    // CommandType 是对副作用的抽象化, 同时将 action 从副作用中解脱出来.
     let reducer: (_ state: S, _ action: A) -> (S, C?)
     var subscriber: ((_ state: S, _ previousState: S, _ command: C?) -> Void)?
     var state: S
@@ -34,36 +34,18 @@ class Store<A: ActionType, S: StateType, C: CommandType> {
         let previousState = state
         let (nextState, command) = reducer(state, action)
         state = nextState
-        // 订阅者 stateDidChanged 在得到 reducer 返回的新状态后会更新 UI.
+        /*
+         不同于 redux 用 action creator 来隔离副作用;
+         这里的副作用如异步请求是交给订阅了 command 的 subscriber 来做的, 
+         command 的闭包接收请求返回的数据再 dispatch 给 reducer,
+         而订阅了 nextState 的 subscriber 才是负责更新 UI 的.
+        */
         subscriber?(state, previousState, command)
     }
 }
 ```
 
-整个构建的核心, 即驱动数据单向流动的正负极是 Store 中的 `reducer` 函数.
-
-```swift
-lazy var reducer: (State, Action) -> (state: State, command: Command?) = {
-    [weak self] (state: State, action: Action) in
-    
-    var state = state
-    var command: Command? = nil
-
-    switch action {
-    case .updateText(let text):
-        state.text = text
-    // ...
-    case .loadToDos:
-        command = Command.loadToDos { data in
-            // command 只是触发异步请求操作, 不会更改 state, 所以需要再发送一次 action .
-            self?.store.dispatch(.addToDos(items: data))
-        }
-    }
-    return (state, command)
-}
-```
-
-从更新状态的 reducer 到更新 UI 的 stateDidChanged 都是可回溯、可预测的纯函数, 这样就提升了整个 View Controller 可测试和可维护性. 
+隔离副作用来保证 reducer 函数的纯粹是数据可回溯、可预测的关键, redux 的 action creator 和 这里的 Command 都是这个作用.  
 
 ```swift
   /*
@@ -83,7 +65,90 @@ lazy var reducer: (State, Action) -> (state: State, command: Command?) = {
 
 &nbsp; 
 
-Redux 的 `reducer` 没有触发副作用的 `Command` , 更契合 **RxJS** 中同样用来维护应用的状态的操作符 `scan((state, action) => state += action, 10)) ` , 如果把 action 看做是时间维度上的集合 action$ , 那么 Store 就可以这样实现了:
+redux 另外一种隔离副作用的方法是 `中间件`, createStore 的第三个参数 `applyMiddleware` 可以重写 dispatch , 使得 action 在进入 dispatch 之前要先经过中间件的处理.
+
+
+<img src="https://user-gold-cdn.xitu.io/2018/12/16/167b79c4d7931231?imageView2/0/w/1280/h/960/ignore-error/1" width="600"/>
+
+```javascript
+// 中间件要先校验 action , 符合条件的处理后要再 dispatch 出去一个新的 action ; 而校验未通过的 action 会传给下一个中间件.
+// 所以 action、dispatch、next 是中间件必需的参数.
+const reduxArray = ({ dispatch, getState }) => next => action => {
+  if (Array.isArray(action)) {
+    return action.forEach(act => dispatch(act))
+  }
+  return next(action)
+}
+const reduxThunk = ({ dispatch, getState }) => next => action => {
+  if (typeof action === 'function') {
+    return action(dispatch, getState)
+  }
+  return next(action)
+}
+
+// applyMiddleware 要把中间件像这样垒起来.
+const reduxThunk = ({ dispatch, getState }) => next => action => {
+  // reduxThunk 的校验和处理动作
+  ... ...
+  return action => {
+    // 下游 reduxArray 的校验和处理动作
+    ... ...
+    return next1(action) // 这是reduxArray的, 还可以继续向下游展开直到 dispatch 的 action => {}. 
+  }
+}
+
+// 中间件 reduxThunk 的返回值从外部看是 reduxThunk 的参数 next , 从内部看则是 reduxArray(next1) 的返回值.
+// 这个逻辑可以用 reduce 实现.
+export function compose(...fns) {
+  if (fns.length === 0) return arg => arg
+  if (fns.length === 1) return fns[0]
+  
+  // 数组 fns 就是 middlewares:[ next => action=> { } ], args 是 dispatch
+  return fns.reduce((res, cur) => (...args) => res(cur(...args))) 
+}
+
+export function applyMiddleware(...middlewares) {
+  return createStore => reducer => {
+    const store = createStore(reducer)
+    let { getState, dispatch } = store
+    const params = {
+      getState: getState,
+      dispatch: (...args) => dispatch(...args)
+    }
+    const middlewareArr = middlewares.map(middleware => middleware(params))
+    dispatch = compose(...middlewareArr)(dispatch);
+    return { ...store, dispatch }
+  }
+}
+```
+
+&nbsp;
+
+## 二 可分离的响应式
+
+&nbsp;
+
+可以说 ` if语句 + 处理副作用的 action creator = 中间件 ` , 而 `redux-observable` 中间件借助 RxJS 强大的异步和转换能力在这两个要素上都有着非常灵活的可操作性. 
+
+```javascript
+const fetchUser = username => ({ type: FETCH_USER, payload: username });
+const fetchUserFulfilled = payload => ({ type: FETCH_USER_FULFILLED, payload });
+
+// epic 函数: 把 action 看做是时间维度上的集合 action$, epic(action$, state$).subscribe(store.dispatch) 
+const fetchUserEpic = action$ => action$.pipe(
+  ofType(FETCH_USER),
+  mergeMap(action =>
+    ajax.getJSON(`https://api.github.com/users/${action.payload}`).pipe(
+      map(response => fetchUserFulfilled(response))
+    )
+  )
+);
+dispatch(fetchUser('torvalds'));
+```
+
+
+
+没有了副作用的 reducer 就像 **RxJS** 只用来维护应用状态的操作符 `scan((state, action) => state += action, 10)) ` , createStore 可以这样实现:
 
 ```javascript
 const createReactiveStore = (reducer, initialState) => {
@@ -111,101 +176,10 @@ const createReactiveStore = (reducer, initialState) => {
 
 &nbsp;
 
-RxJS 还有过滤类操作符 filter , 回压控制类操作符 throttle 和 window ，调用 AJAX 请求的操作符 mergeMap 和 switchMap ...这些支持复杂异步操作的功能其实也可以插入到 redux 处理 action 的流程之中. `Redux-Observable` 就以中间件的形式实现了这个想法.
 
-```javascript
-const epic = (action$, store) => {
-  return action$
-    .filter( action => 
-      (action.type === ActionTypes.MINUS || action.type === ActionTypes.PLUS)
-    )
-    .delay(1000)
-    .map(action => {
-      const count = store.getState().count;
-      if(count ...) { 
-        ... 
-        return {type: 'plus'};
-      } else { ... }
-      return {type: 'nothing'};
-    });
-};
+redux-observable 的 `epic` 函数接收了一个 observable , 再返回一个 observable, 内部则是中间件的业务逻辑. 
 
-import {createEpicMiddleware} from 'redux-observable'; 
-import epic from './Epic';
-const epicMiddleware = createEpicMiddleware(epic);
-const store = createStore(
-  reducer,
-  initValues,
-  applyMiddleware(epicMiddleware)
-);
-```
-
-createStore 函数其实还支持第三个参数, applyMiddleware 重写了 createStore 返回的 dispatch 函数, 使得 action 进入 dispatch 之前要先经过 redux-observable 中间件 `epic` 函数的处理.
-
-```javascript
-// 先设计两个中间件
-const reduxArray = ({ dispatch, getState }) => next => action => {
-  if (Array.isArray(action)) {
-    return action.forEach(act => dispatch(act))
-  }
-  return next(action)
-}
-const reduxThunk = ({ dispatch, getState }) => next => action => {
-  if (typeof action === 'function') {
-    return action(dispatch, getState)
-  }
-  return next(action)
-}
-
-// applyMiddleware 要把这两个中间件像这样垒起来.
-const reduxThunk = ({ dispatch, getState }) => next => action => {
-  // reduxThunk 的校验和处理动作
-  ... ...
-  return action => {
-    // 下游 reduxArray 的校验和处理动作
-    ... ...
-    return next1(action) // 这是reduxArray的, 还可以继续向下游展开直到 dispatch 的 action => {}. 
-  }
-}
-```
-
-applyMiddleware 实现的是: 中间件 reduxThunk 的返回值从外部看是 reduxThunk 的参数 next , 从内部看则是 reduxArray(next1) 的返回值, 以此类推. 
-
-```javascript
-export function compose(...fns) {
-  if (fns.length === 0) return arg => arg
-  if (fns.length === 1) return fns[0]
-  
-  // 数组 fns 就是 middlewares:[ next => action=> { } ], args 是 dispatch
-  // reduce 可以实现applyMiddleware的套娃逻辑.
-  return fns.reduce((res, cur) => (...args) => res(cur(...args))) 
-}
-
-export function applyMiddleware(...middlewares) {
-  return createStore => reducer => {
-    const store = createStore(reducer)
-    let { getState, dispatch } = store
-    const params = {
-      getState: getState,
-      dispatch: (...args) => dispatch(...args)
-    }
-    const middlewareArr = middlewares.map(middleware => middleware(params))
-    dispatch = compose(...middlewareArr)(dispatch);
-    return { ...store, dispatch }
-  }
-}
-```
-
-&nbsp;
-
-&nbsp;
-
-## 二 可分离的响应式
-
-
-Redux-Observable 的 `epic` 函数: 接收一个 observable , 再返回一个 observable, 内部则是中间件的业务逻辑. 
-
-RxJS 项目在测试时也会用到这样的模式将一些无关的外部逻辑隔离在 "epic" 函数之外, 来提高代码的可测试性.
+RxJS 项目在测试时也会用到这种模式将一些无关的外部逻辑隔离在 "epic" 函数之外, 来提高代码的可测试性.
 
 <img src="http://img.wwery.com/tourist/a13320109095059.jpg" width="500"/>
 
