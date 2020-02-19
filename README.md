@@ -1,18 +1,14 @@
 
 &nbsp; 
 
-> 函数式容易编写「可预测」的代码, 响应式容易编写「可分离」的代码 ---- cyclejs.cn
-
-&nbsp; 
-
 ## 一 可预测的函数式
 
-这是一个移动端用 Redux 的状态管理方式构建出来的[[单向数据流动的函数式 View Controller]]( https://onevcat.com/2017/07/state-based-viewcontroller/). 
+这是一个在移动端用 Redux 的状态管理模式构建出来的[[单向数据流动的函数式 View Controller]]( https://onevcat.com/2017/07/state-based-viewcontroller/). 
 
 <img src="https://onevcat.com/assets/images/2017/view-controller-states.svg" width="600"/>
 
 ```swift
-// Store 可以对照着 redux 的 createStore 来看
+// 图中的 Store 可以对照着 redux 的 createStore 来看
 class Store<A: ActionType, S: StateType, C: CommandType> {
     // CommandType 是对副作用的抽象化, 同时将 action 从副作用中解脱出来.
     let reducer: (_ state: S, _ action: A) -> (S, C?)
@@ -45,7 +41,7 @@ class Store<A: ActionType, S: StateType, C: CommandType> {
 }
 ```
 
-隔离副作用来保证 reducer 函数的纯粹是数据可回溯、可预测的关键, redux 的 action creator 和 这里的 Command 都是这个作用.  
+隔离副作用来保证 `reducer` 函数的纯粹是数据可回溯、可预测的关键, redux 的 `action creator` 和 Command 都是这个用途.  
 
 ```swift
   /*
@@ -102,7 +98,6 @@ const reduxThunk = ({ dispatch, getState }) => next => action => {
 export function compose(...fns) {
   if (fns.length === 0) return arg => arg
   if (fns.length === 1) return fns[0]
-  
   // 数组 fns 就是 middlewares:[ next => action=> { } ], args 是 dispatch
   return fns.reduce((res, cur) => (...args) => res(cur(...args))) 
 }
@@ -128,16 +123,21 @@ export function applyMiddleware(...middlewares) {
 
 &nbsp;
 
-可以说 ` if语句 + 处理副作用的 action creator = 中间件 ` , 而 `redux-observable` 中间件借助 RxJS 强大的异步和转换能力在这两个要素上都有着非常灵活的可操作性. 
+可以说 ` if语句 + 处理副作用的 action creator = 中间件 ` , 而 `redux-observable` 中间件借助 RxJS 强大的异步和转换能力在这两个要素上都有着极其灵活的可操作性. 
 
 ```javascript
 const fetchUser = username => ({ type: FETCH_USER, payload: username });
 const fetchUserFulfilled = payload => ({ type: FETCH_USER_FULFILLED, payload });
-
-// epic 函数: 把 action 看做是时间维度上的集合 action$, epic(action$, state$).subscribe(store.dispatch) 
+/*
+  首先要把 action 看做是时间维度上的集合 action$ 
+  redux-observable 的 epic 函数接收一个 action$ , 再返回一个 action$, 内部则是中间件的业务逻辑.
+  如果 action$ 可以继续传入 reducer 中, 就能实现 stream 版的 applyMiddleware, 即
+  epic(action$, state$).scan(reducer).do(state => getState()), 它等价于:
+  epic(action$, state$).subscribe(reactiveStore.dispatch) + createReactiveStore
+*/ 
 const fetchUserEpic = action$ => action$.pipe(
-  ofType(FETCH_USER),
-  mergeMap(action =>
+  ofType(FETCH_USER), //  if语句
+  mergeMap(action =>  //  处理副作用的 action creator
     ajax.getJSON(`https://api.github.com/users/${action.payload}`).pipe(
       map(response => fetchUserFulfilled(response))
     )
@@ -146,17 +146,13 @@ const fetchUserEpic = action$ => action$.pipe(
 dispatch(fetchUser('torvalds'));
 ```
 
-
-
-没有了副作用的 reducer 就像 **RxJS** 只用来维护应用状态的操作符 `scan((state, action) => state += action, 10)) ` , createStore 可以这样实现:
-
 ```javascript
 const createReactiveStore = (reducer, initialState) => {
   const action$ = new Subject();
   let currentState = initialState;
   /*
    state 也是一个受 action 作用而不断累计的变量，scan 可以向下游传递 state 的每个累计值;
-   操作符 reduce 与 scan 的唯一区别是: reduce 只会传递一个最终的累计值, 它的上游必须是有限的数据.
+   操作符 reduce 与 scan 唯一的区别是: reduce 只会传递一个最终的累计值, 它的上游必须是有限的数据.
   */
   const store$ = action$.startWith(initialState).scan(reducer).do(state => {
     currentState = state
@@ -176,10 +172,7 @@ const createReactiveStore = (reducer, initialState) => {
 
 &nbsp;
 
-
-redux-observable 的 `epic` 函数接收了一个 observable , 再返回一个 observable, 内部则是中间件的业务逻辑. 
-
-RxJS 项目在测试时也会用到这种模式将一些无关的外部逻辑隔离在 "epic" 函数之外, 来提高代码的可测试性.
+RxJS 项目在测试时也会使用 redux-observable 这种利用响应式分离关注点的方式将一些无关的外部逻辑隔离在 "epic" 函数之外, 来提高代码的可测试性.
 
 <img src="http://img.wwery.com/tourist/a13320109095059.jpg" width="500"/>
 
@@ -219,7 +212,7 @@ describe('Counter', () => {
 
 &nbsp;
 
-**Flutter** 也有自己的 `epic` 模式 ---- **Bloc (Business Logic Component)**. 
+**Flutter** 的 `epic` 模式 ---- **Bloc (Business Logic Component)**. 
 
 **Dart** 内置了两种对异步的支持: Future 的 `async + await` 和 Stream 的 `async* + yield`.(Stream 具备了 Observable 所需的 迭代器模式 `yield` 和 观察者模式 `listen` ).
 
