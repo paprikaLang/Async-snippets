@@ -5,7 +5,7 @@
 
 &nbsp; 
 
-这是一个在移动端按照 Redux 的状态管理模式构建出来的[[单向数据流动的函数式 View Controller]]( https://onevcat.com/2017/07/state-based-viewcontroller/). 
+这是一个在移动端按照 redux 的状态管理模式构建出来的[[单向数据流动的函数式 View Controller]]( https://onevcat.com/2017/07/state-based-viewcontroller/). 
 
 <img src="https://onevcat.com/assets/images/2017/view-controller-states.svg" width="600"/>
 
@@ -33,8 +33,8 @@ class Store<A: ActionType, S: StateType, C: CommandType> {
         let (nextState, command) = reducer(state, action)
         state = nextState
         /*
-	 只有订阅了 nextState 的 subscriber 才是负责更新 UI 的;
-         而订阅了 command 的 subscriber 可以触发副作用, 和 redux 用 action creator 来隔离副作用不同.
+	 只有订阅了 nextState 的 subscriber 是负责更新 UI 的;
+         订阅了 command 的 subscriber 可以触发副作用, 这和 redux 用 action creator 来隔离副作用不同.
 	 比如一个异步请求完成后, command 的闭包会接收请求返回的数据做为 action 的 payload , 再 dispatch 给 reducer;         
         */
         subscriber?(state, previousState, command)
@@ -69,7 +69,7 @@ redux 另一种隔离副作用的方法是 `中间件`, createStore 的第三个
 
 ```javascript
 // 中间件要先校验 action , 符合条件的处理后要再 dispatch 出去一个 action ; 而校验未通过的 action 会传给下一个中间件.
-// 根据这个原理先自定义两个中间件.
+// 根据这个原理先自定义两个中间件出来.
 const reduxArray = ({ dispatch, getState }) => next => action => {
   if (Array.isArray(action)) {
     return action.forEach(act => dispatch(act))
@@ -83,7 +83,7 @@ const reduxThunk = ({ dispatch, getState }) => next => action => {
   return next(action)
 }
 
-// applyMiddleware 要能把中间件像这样垒起来.
+// applyMiddleware 要把中间件像这样垒起来.
 const reduxThunk = ({ dispatch, getState }) => next => action => {
   // reduxThunk 的校验和处理动作
   ... ...
@@ -95,7 +95,7 @@ const reduxThunk = ({ dispatch, getState }) => next => action => {
 }
 
 // 中间件 reduxThunk 的返回值从结构上看是 reduxThunk 的参数, 从内容上看则是 reduxArray(next1) 的返回值.
-// 这个可以用 reduce 实现.
+// reduxThunk(reduxArray(...)) 可用 reduce 实现.
 export function compose(...fns) {
   if (fns.length === 0) return arg => arg
   if (fns.length === 1) return fns[0]
@@ -126,14 +126,14 @@ export function applyMiddleware(...middlewares) {
 
 &nbsp;
 
-可以说中间件就是 ` 判断语句 + 处理副作用的 action creator ` , 而 `redux-observable` 中间件借助了 RxJS 强大的异步和转换能力在这两个要素上都有着极其灵活的可操作性. 
+可以说中间件就是 ` 判断语句 + 处理副作用的 action creator ` , 而中间件 `redux-observable` 借助了 RxJS 强大的异步和转换能力在这两个要素上都有着极其灵活的可操作性. 
 
 ```javascript
 const fetchUser = username => ({ type: FETCH_USER, payload: username });
 const fetchUserFulfilled = payload => ({ type: FETCH_USER_FULFILLED, payload });
 /*
-  首先要把 action 看做是时间维度上的集合 action$ ,
-  redux-observable 的核心 ---- epic 函数会接收这个 action$ , 经过它的业务逻辑处理, 最后返回一个 action$.
+  先要把 action 看做是时间维度上的集合 action$ ,
+  redux-observable 的核心 ---- epic 函数会接收这个 action$ , 经过它的业务逻辑处理, 最后再返回一个 action$.
 */ 
 const fetchUserEpic = action$ => action$.pipe(
   ofType(FETCH_USER), //  判断语句
@@ -144,9 +144,9 @@ const fetchUserEpic = action$ => action$.pipe(
   )
 );
 /*
-  如果 action$ 能传入 reducer 中, 那就相当于以流的形式实现了 applyMiddleware 构建的 action 管道, 即:
+  如果 action$ 能传入 reducer 中, 那就相当于以流的形式实现了刚刚 applyMiddleware 构建的 action 管道, 即:
   epic(action$, state$).scan(reducer).do(state => getState());
-  如果现实一点, 我们也可以设计一个接收 action$ 的 Store, 即:
+  实际操作上, 我们可以设计一个接收 action$ 的 Store, 即:
   epic(action$, state$).subscribe(reactiveStore.dispatch) + createReactiveStore { $action.scan(reducer) }
 */
 dispatch(fetchUser('torvalds'));
@@ -180,7 +180,7 @@ const createReactiveStore = (reducer, initialState) => {
 
 redux-observable 的响应式流成功分离了使用者的关注点, 所以你可以不必知晓 action$ 的来龙去脉而只专注中间件的业务逻辑.
 
-RxJS 项目在测试时也会像 redux-observable 这样将一些无关的外部逻辑隔离在 "epic" 函数之外, 来提高业务代码的可测试性.
+RxJS 项目在测试时也会这样将一些无关的外部逻辑隔离在 "epic" 函数之外, 来提高业务代码的可测试性.
 
 <img src="http://img.wwery.com/tourist/a13320109095059.jpg" width="500"/>
 
@@ -220,7 +220,7 @@ describe('Counter', () => {
 
 &nbsp;
 
-**Flutter** 依照这个响应式的 `生产者 -- 纯函数 -- 观察者` 模型, 打造了自己的业务逻辑组件 ---- Bloc ( Business Logic Component). 
+**Flutter** 依照上面响应式的 `生产者 -- 纯函数 -- 观察者` 模型, 打造出了自己的业务逻辑组件 ---- Bloc ( Business Logic Component). 
 
 图中做为生产者的 sink 可以向 `Bloc` 内部监听它的 stream[1] 传输数据; 再由另一个 stream (因为是不同 StreamController 创建的)将处理好的数据传给它的观察者 StreamBuilder 并同步更新这个部件.
 
@@ -248,7 +248,7 @@ describe('Counter', () => {
 
 ```javascript
 /*
-    我们现在为了还原 cyclejs 的大致原理要将前面关于RxJS测试的例子改造一下: 
+    为了还原 cyclejs 的大致原理, 将前面关于RxJS测试的例子改造一下: 
     先前的观察者做好本职的同时还要负责返回本该生产者交给纯函数的 observable,
     这样就相当于将生产者和观察者首尾相连封装在了一个函数里, 而这个函数也可以作为执行环境与纯函数循环交互了.
 */
@@ -268,7 +268,7 @@ function domDriver(text$) {  // 封装了生产者与观察者的执行环境
     // 或者我们自己实现 hyperscript helper functions, 比如: @cycle/react-native, 并把 domDriver 变成一个插件
 	text$.subscribe({
 		next: str => {
-			const elem = document.querySelector('#app');
+			const elem = document.querySelector('#count');
 			elem.textContent = str;
 		}
 	})
@@ -277,7 +277,7 @@ function domDriver(text$) {  // 封装了生产者与观察者的执行环境
 	return domsource;
 }
 /*
-domDriver 这样改动后会引出一个 circle dependencies of stream 问题, 不过 xstream 的 imitate 可以解决:
+domDriver 这样改动后会引出一个 circle dependencies of stream 问题, 需要 xstream 的 imitate 来解决掉它:
     const sinks = main({DOM: domsource});    // 纯函数需要 domDriver 提供的 sources
     const domsource = domDriver(sinks);      // domDriver 需要纯函数返回的 sinks
 */
@@ -300,7 +300,7 @@ function run(main, domDriver) {
 import {run} from '@cycle/run';
 import {div, label, input, hr, h1, makeDOMDriver} from '@cycle/dom';
 import {withState} from '@cycle/state';
-// cyclejs 将 state$ 作为 sources , 将 reducer$ 作为 sinks , 实现了可预测、可分离的状态管理.
+// cyclejs 将 state$ 做为 sources , 将 reducer$ 做为 sinks , 实现了可预测、可分离的状态管理.
 function main(sources) {
   const state$ = sources.state.stream;
   const vdom$ = state$.map(state => /* render virtual DOM here */);
@@ -330,12 +330,12 @@ run(wrappedMain, {
 
 [1]  Dart 内置了两种对异步的支持: Future 的 `async + await` 和 Stream 的 `async* + yield`.
 
-Stream 具备 Observable 的 `迭代器模式 yield + 观察者模式 listen` .
+Stream 具备 observable 的 `迭代器模式 yield + 观察者模式 listen` .
 
-结合了观察者模式的迭代器不再需要**拉取**数据的接口(getCurrent, moveToNext, isDone)来遍历各种复杂的数据集合, 因为订阅了 publisher 之后, 无论数据怎样产生, 同步还是异步, 都会自动**推送**给 observer .
+结合了观察者模式的迭代器模式不再需要**拉取**数据的接口(getCurrent, moveToNext, isDone)来遍历各种复杂的数据集合, 因为订阅了 publisher 之后, 无论数据怎样产生, 同步还是异步, 都会自动**推送**给 observer .
 
 
-[2] cyclejs 的文档和教程细致入微、偏僻入里, 无需再提炼出我的想法, 所以一些文字和代码就直接腾挪了来.
+[2] cyclejs 的文档和教程都做的很好, 无需再提炼出我的想法, 所以一些文字和代码就直接腾挪了来.
 
 
 
