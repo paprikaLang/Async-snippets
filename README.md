@@ -124,7 +124,7 @@ export function applyMiddleware(...middlewares) {
 
 &nbsp;
 
-中间件 `redux-observable` 借助 RxJS 将 action 看做是时间维度上的集合 action$, 可以灵活地处理异步、转换、订阅发送等复杂操作.
+我们可以把 action 看做是时间维度上的集合 action$ , 中间件 `redux-observable` 借助 RxJS 就能灵活地处理 action$ 的异步等副作用.
 
 ```javascript
 const fetchUser = username => ({ type: FETCH_USER, payload: username });
@@ -141,7 +141,7 @@ const fetchUserEpic = action$ => action$.pipe(
   )
 );
 /*
-  如果 action$ 能直接传进 reducer , 就相当于以流的形式实现了 applyMiddleware 构建的 action 管道:
+  如果 action$ 能接着 epic 传给 reducer , 就相当于以流的形式实现了 applyMiddleware 构建的 action 管道:
   epic(action$, state$).scan(reducer).do(state => getState());
   实际操作上, 我们也可以设计一个接收 action$ 的 Store :
   epic(action$, state$).subscribe(reactiveStore.dispatch) + createReactiveStore { $action.scan(reducer) }
