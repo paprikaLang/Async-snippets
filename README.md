@@ -89,11 +89,11 @@ const reduxThunk = ({ dispatch, getState }) => next => action => {
   return action => {
     // 下游 reduxArray 的校验和处理动作
     ... ...
-    return next1(action) // 这是reduxArray的, 还可以继续向下游展开直到 dispatch 的 action => {}. 
+    return next1(action) // reduxArray的返回值, 还可以继续向下游展开直到 dispatch 的 action => {}. 
   }
 }
 
-// 中间件 reduxThunk 的返回值从外部看是 reduxThunk 的参数 next , 从内部看则是 reduxArray(next1) 的返回值.
+// 中间件 reduxThunk 的返回值从结构看是 reduxThunk 的参数, 从内容看则是 reduxArray(next1) 的返回值.
 // 这个逻辑可以用 reduce 实现.
 export function compose(...fns) {
   if (fns.length === 0) return arg => arg
@@ -123,17 +123,14 @@ export function applyMiddleware(...middlewares) {
 
 &nbsp;
 
-可以说 ` if语句 + 处理副作用的 action creator = 中间件 ` , 而 `redux-observable` 中间件借助 RxJS 强大的异步和转换能力在这两个要素上都有着极其灵活的可操作性. 
+可以说 ` if语句 + 处理副作用的 action creator = 中间件 ` , 而 `redux-observable` 中间件借助了 RxJS 强大的异步和转换能力在这两个要素上都有着极其灵活的可操作性. 
 
 ```javascript
 const fetchUser = username => ({ type: FETCH_USER, payload: username });
 const fetchUserFulfilled = payload => ({ type: FETCH_USER_FULFILLED, payload });
 /*
-  首先要把 action 看做是时间维度上的集合 action$ 
-  redux-observable 的 epic 函数接收一个 action$ , 再返回一个 action$, 内部则是中间件的业务逻辑.
-  如果 action$ 可以继续传入 reducer 中, 就能实现 stream 版的 applyMiddleware, 即
-  epic(action$, state$).scan(reducer).do(state => getState()), 它等价于:
-  epic(action$, state$).subscribe(reactiveStore.dispatch) + createReactiveStore
+  首先要把 action 看做是时间维度上的集合 action$ ,
+  redux-observable 的核心 ---- epic 函数, 会接收这个 action$ , 经过业务逻辑处理, 最后返回一个新的 action$.
 */ 
 const fetchUserEpic = action$ => action$.pipe(
   ofType(FETCH_USER), //  if语句
@@ -143,6 +140,11 @@ const fetchUserEpic = action$ => action$.pipe(
     )
   )
 );
+/*
+  如果 action$ 可以继续传入 reducer 中, 那么我们就能以流的形式实现 applyMiddleware 构建的管道, 即:
+  epic(action$, state$).scan(reducer).do(state => getState()), 或者创建一个接收 action$ 的 Store:
+  epic(action$, state$).subscribe(reactiveStore.dispatch) + createReactiveStore { $action.scan(reducer) }
+*/
 dispatch(fetchUser('torvalds'));
 ```
 
@@ -172,7 +174,9 @@ const createReactiveStore = (reducer, initialState) => {
 
 &nbsp;
 
-RxJS 项目在测试时也会用到 redux-observable 响应式分离关注点的模式将一些无关的外部逻辑隔离在 "epic" 函数之外, 来提高业务逻辑的可测试性.
+redux-observable 的响应式流成功分离了使用者的关注点, 所以你可以不必知晓 action$ 的来龙去脉而只专注中间件的业务逻辑.
+
+RxJS 项目在测试时也会用到这种模式将一些无关的外部逻辑隔离在 `epic` 函数之外, 来提高业务代码的可测试性.
 
 <img src="http://img.wwery.com/tourist/a13320109095059.jpg" width="500"/>
 
@@ -211,72 +215,101 @@ describe('Counter', () => {
 ```
 
 &nbsp;
-&nbsp;
 
-**Flutter** 的 `epic` 模式 ---- Bloc (Business Logic Component). 
-
-**Dart** 内置了两种对异步的支持: Future 的 `async + await` 和 Stream 的 `async* + yield`.(Stream 具备 Observable 的 `迭代器模式 yield + 观察者模式 listen` ).
-
-> 所谓迭代器模式是通过一些通用接口(getCurrent, moveToNext, isDone)来遍历一些复杂的、未知的数据集合; 而观察者模式不需要这些**拉取**数据的接口, 因为订阅了 publisher 之后, 无论数据是同步还是异步产生的, 都会自动**推送**给 observer .
+**Flutter** 为这个 `epic` 函数命名为 ---- Bloc (业务逻辑组件 Business Logic Component). 
 
 &nbsp;
-
-图中做为生产者的 sink 可以向 `Bloc` 内部监听它的 stream 传输数据; 再由另一个 stream (因为是不同 StreamController 创建的)将处理好的数据传给它的观察者 StreamBuilder 并同步更新这个部件.
 
 <img src="https://upload-images.jianshu.io/upload_images/4044518-e2efb6e9dc3c1dbe.png?imageMogr2/auto-orient/strip|imageView2/2/w/561" width="500" />
+
+图中做为生产者的 sink 可以向 `Bloc` 内部监听它的 stream[1] 传输数据; 再由另一个 stream (因为是不同 StreamController 创建的)将处理好的数据传给它的观察者 StreamBuilder 并同步更新这个部件.
+
+
+我们可以尝试像 cyclejs[2] 一样改造这个模式的串行结构(生产者 -- 业务逻辑组件 -- 观察者)为环状, 即: 合并生产者和观察者为一个执行环境, 与 业务逻辑组件循环交互.
 
 &nbsp;
 
 ```javascript
 /*
-    接下来我们将前面RxJS测试的例子改造一下: 
-    观察者要返回原本该生产者返回的 observable (包括 domsource$ httpsource$ 等). 
-    这样就相当于生产者和观察者首尾相连封装在一个函数里, 与 "epic" 纯函数形成了循环交互.
-    不过这样会引出 circle dependencies of stream 的矛盾点, 即:
-    const sinks = mainFn({DOM: domsource});  // a = f(b)
-	const domsource = domDriver(sinks);      // b = g(a)
-    xstream 的 imitate 能解决.
+    接下来我们将前面RxJS测试的例子改造一下, 大致实现一下 cyclejs 的原理: 
+    先前的观察者做好本职的同时还要负责返回原本该生产者交给业务逻辑组件的 observable.
+    这样就相当于生产者和观察者首尾相连封装在了一个函数里, 而这个函数就作为执行环境与业务逻辑组件循环交互.
 */
-function main(sources) {
+function main(sources) {     // 业务逻辑组件
 	const click$ = sources.DOM;
 	return {
-		DOM: click$.startWith(null).map(() => 
-                xs.periodic(1000)
-                .fold(prev => prev+1, 0)
-			).flatten()
-			.map(i => `Seconds elapased: ${i}`)
+	     DOM: click$.startWith(null).map(() => 
+                 xs.periodic(1000)  // xstream 可以简单理解为 Rx observable.
+                 .fold(prev => prev+1, 0)
+		).flatten()
+		.map(i => `Seconds elapased: ${i}`)
 	};
 }
 
-function domDriver(text$) {
-    // 如果 main 传入简单的 vdom 数据, 可以解决这里的硬编码问题;
-    // 你也可以自己实现 hyperscript helper functions, 把它做成一个插件.
+function domDriver(text$) {  // 封装了原生产者与观察者的执行环境
+    // 如果业务逻辑组件能传过来简单的 vdom 数据, 就可以解决这里的硬编码问题;
+    // 或者干脆自己实现 hyperscript helper functions, 把它做成一个插件, 如: @cycle/react-native
 	text$.subscribe({
 		next: str => {
 			const elem = document.querySelector('#app');
 			elem.textContent = str;
 		}
 	})
-	const domsource = fromEvent(document, 'click');
+	// 以上是原观察者, 以下是原生产者.
+	const domsource = fromEvent(document, 'click'); // xstream
 	return domsource;
 }
-
-function run(mainFn, drivers) {
+/*
+这样改动后 domDriver 会引出一个 circle dependencies 问题, 即:
+    const sinks = mainFn({DOM: domsource});  // 业务逻辑组件需要执行环境提供的读副作用 sources
+    const domsource = domDriver(sinks);      // 执行环境需要业务组件的写副作用 sinks
+好在 xstream 的 imitate 可以解决.
+*/
+function run(main, domDriver) {
 	const fakeDOMSink = xs.create();
 	const domsource = domDriver(fakeDOMSink);
-	const sinks = mainFn({DOM: domsource});
+	const sinks = main({DOM: domsource});
+	//imitate 解决循环依赖的问题.
 	fakeDOMSink.imitate(sinks.DOM);
 }
 ```
 
 > 在 Cycle.js 中，可以认为“操作系统”就是围绕应用的执行环境。大致来说，DOM、console、JavaScript 和 JS API 都扮演了 web 开发中操作系统的角色。我们需要软件适配器来与浏览器或者其他环境（例如 Node.js）进行交互。Cycle.js 的 driver 就是外界（包括用户以及 JavaScript 执行环境）与 Cycle.js 工具构建的应用世界之间的适配器.
 
+```javascript
+import {withState} from '@cycle/state';
+// cyclejs 将 state$ 作为 sources , 将 reducer$ 作为 sinks , 实现了自己的状态管理.
+function main(sources) {
+  const state$ = sources.state.stream;
+  const vdom$ = state$.map(state => /* render virtual DOM here */);
+
+  const initialReducer$ = xs.of(function initialReducer() { return 0; });
+  const addOneReducer$ = xs.periodic(1000)
+    .mapTo(function addOneReducer(prev) { return prev + 1; });
+  const reducer$ = xs.merge(initialReducer$, addOneReducer$);
+
+  return {
+    DOM: vdom$,
+    state: reducer$,
+  };
+}
+
+const wrappedMain = withState(main);
+
+run(wrappedMain, {
+  DOM: makeDOMDriver('#app'),
+});
+```
 
 
+[1] Dart 内置了两种对异步的支持: Future 的 `async + await` 和 Stream 的 `async* + yield`.
+
+Stream 具备 Observable 的 `迭代器模式 yield + 观察者模式 listen` .
+
+结合了观察者模式的迭代器模式不再需要**拉取**数据的接口(getCurrent, moveToNext, isDone)来遍历各种复杂的数据集合了, 因为订阅了 publisher 之后, 无论数据怎样产生, 同步还是异步, 都会自动**推送**给 observer .
 
 
-
-
+[2] cyclejs.cn 的文档细致入微、偏僻入里, 无需再提炼出我的想法, 所以一些文字就直接腾挪了来.
 
 
 
