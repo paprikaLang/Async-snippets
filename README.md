@@ -3,6 +3,8 @@
 
 ## 一 可预测的函数式
 
+&nbsp; 
+
 这是一个在移动端用 Redux 的状态管理模式构建出来的[[单向数据流动的函数式 View Controller]]( https://onevcat.com/2017/07/state-based-viewcontroller/). 
 
 <img src="https://onevcat.com/assets/images/2017/view-controller-states.svg" width="600"/>
@@ -141,8 +143,9 @@ const fetchUserEpic = action$ => action$.pipe(
   )
 );
 /*
-  如果 action$ 可以继续传入 reducer 中, 那么我们就能以流的形式实现 applyMiddleware 构建的管道, 即:
-  epic(action$, state$).scan(reducer).do(state => getState()), 或者创建一个接收 action$ 的 Store:
+  如果 action$ 可以继续传入 reducer 中, 那么我们就能以流的形式实现了 applyMiddleware 构建的管道, 即:
+  epic(action$, state$).scan(reducer).do(state => getState());
+  而现实点的话, 我们可以设计一个接收 action$ 的 Store, 即:
   epic(action$, state$).subscribe(reactiveStore.dispatch) + createReactiveStore { $action.scan(reducer) }
 */
 dispatch(fetchUser('torvalds'));
@@ -176,7 +179,7 @@ const createReactiveStore = (reducer, initialState) => {
 
 redux-observable 的响应式流成功分离了使用者的关注点, 所以你可以不必知晓 action$ 的来龙去脉而只专注中间件的业务逻辑.
 
-RxJS 项目在测试时也会像 redux-observable 这样将一些无关的外部逻辑隔离在 `epic` 函数之外, 来提高业务代码的可测试性.
+RxJS 项目在测试时也会像 redux-observable 这样将一些无关的外部逻辑隔离在 "epic" 函数之外, 来提高业务代码的可测试性.
 
 <img src="http://img.wwery.com/tourist/a13320109095059.jpg" width="500"/>
 
@@ -216,18 +219,18 @@ describe('Counter', () => {
 
 &nbsp;
 
-**Flutter** 利用这种 `生产者 -- 纯函数 -- 观察者` 的响应式模型, 打造了自己的业务逻辑组件 ---- Bloc ( Business Logic Component). 
-
-<img src="https://upload-images.jianshu.io/upload_images/4044518-e2efb6e9dc3c1dbe.png?imageMogr2/auto-orient/strip|imageView2/2/w/561" width="500" />
+**Flutter** 依据这个响应式的 `生产者 -- 纯函数 -- 观察者` 模型, 打造了自己的业务逻辑组件 ---- Bloc ( Business Logic Component). 
 
 图中做为生产者的 sink 可以向 `Bloc` 内部监听它的 stream[1] 传输数据; 再由另一个 stream (因为是不同 StreamController 创建的)将处理好的数据传给它的观察者 StreamBuilder 并同步更新这个部件.
 
+<img src="https://upload-images.jianshu.io/upload_images/4044518-e2efb6e9dc3c1dbe.png?imageMogr2/auto-orient/strip|imageView2/2/w/561" width="500" />
+
 
 &nbsp;
 
 &nbsp;
 
-`cyclejs[2]` 可以将模型中的生产者和观察者合并为一个围绕应用的执行环境, 再与做为应用程序的纯函数进行循环交互.
+**Cycle.js[2]** 将模型中的生产者和观察者合并成了一个围绕应用的执行环境, 并与做为应用程序的纯函数进行循环交互.
 
 &nbsp;
 
@@ -250,7 +253,7 @@ function main(sources) {     // 业务逻辑组件
 
 function domDriver(text$) {  // 封装了原生产者与观察者的执行环境
     // 如果业务逻辑组件能传过来简单的 vdom 数据, 就可以解决这里的硬编码问题;
-    // 或者干脆自己实现 hyperscript helper functions, 把它做成一个插件, 如: @cycle/react-native
+    // 或者干脆自己实现 hyperscript helper functions, 把domDriver做成一个插件, 如: @cycle/react-native
 	text$.subscribe({
 		next: str => {
 			const elem = document.querySelector('#app');
@@ -263,15 +266,15 @@ function domDriver(text$) {  // 封装了原生产者与观察者的执行环境
 }
 /*
 这样改动后 domDriver 会引出一个 circle dependencies 问题, 即:
-    const sinks = mainFn({DOM: domsource});  // 业务逻辑组件需要执行环境提供的读副作用 sources
-    const domsource = domDriver(sinks);      // 执行环境需要业务组件的写副作用 sinks
+    const sinks = main({DOM: domsource});  // 业务逻辑组件需要执行环境提供的 sources
+    const domsource = domDriver(sinks);      // 执行环境需要业务组件的 sinks
 好在 xstream 的 imitate 可以解决.
 */
 function run(main, domDriver) {
 	const fakeDOMSink = xs.create();
 	const domsource = domDriver(fakeDOMSink);
 	const sinks = main({DOM: domsource});
-	//imitate 解决循环依赖的问题.
+	// xstream 的 imitate 解决了循环依赖的问题.
 	fakeDOMSink.imitate(sinks.DOM);
 }
 ```
@@ -280,6 +283,8 @@ function run(main, domDriver) {
 
 ```javascript
 import {withState} from '@cycle/state';
+import {run} from '@cycle/run'
+import {div, label, input, hr, h1, makeDOMDriver} from '@cycle/dom'
 // cyclejs 将 state$ 作为 sources , 将 reducer$ 作为 sinks , 实现了自己的状态管理.
 function main(sources) {
   const state$ = sources.state.stream;
@@ -295,7 +300,6 @@ function main(sources) {
     state: reducer$,
   };
 }
-
 const wrappedMain = withState(main);
 
 run(wrappedMain, {
@@ -303,13 +307,21 @@ run(wrappedMain, {
 });
 ```
 
+&nbsp; 
 
-[1] Dart 内置了两种对异步的支持: Future 的 `async + await` 和 Stream 的 `async* + yield`.
+&nbsp; 
+
+&nbsp; 
+
+[1] 
+
+```
+Dart 内置了两种对异步的支持: Future 的 `async + await` 和 Stream 的 `async* + yield`.
 
 Stream 具备 Observable 的 `迭代器模式 yield + 观察者模式 listen` .
 
 结合了观察者模式的迭代器模式不再需要**拉取**数据的接口(getCurrent, moveToNext, isDone)来遍历各种复杂的数据集合了, 因为订阅了 publisher 之后, 无论数据怎样产生, 同步还是异步, 都会自动**推送**给 observer .
-
+```
 
 [2] cyclejs 的文档和教程细致入微、偏僻入里, 无需再提炼出我的想法, 所以一些文字和代码就直接腾挪了来.
 
