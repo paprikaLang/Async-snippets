@@ -328,11 +328,7 @@ run(wrappedMain, {
 
 &nbsp; 
 
-[1]  Dart 内置了两种对异步的支持: Future 的 `async + await` 和 Stream 的 `async* + yield`.
-
-Stream 具备 observable 的 `迭代器模式 yield + 观察者模式 listen` .
-
-结合了观察者模式的迭代器模式不再需要**拉取**数据的接口(getCurrent, moveToNext, isDone)来遍历各种复杂的数据集合, 因为订阅了 publisher 之后, 无论数据怎样产生, 同步还是异步, 都会自动**推送**给 observer .
+[1]  Stream 具备 observable 的迭代器模式和观察者模式. 结合了观察者模式的迭代器模式不再需要**拉取**数据的接口(getCurrent, moveToNext, isDone)来遍历各种复杂的数据集合. 因为订阅了 publisher 之后, 无论数据怎样产生, 同步还是异步, 都会自动**推送**给 observer .
 
 
 [2] cyclejs 的文档和教程都做的很好, 无需再提炼出我的想法, 所以一些文字和代码就直接腾挪了来.
