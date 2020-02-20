@@ -232,6 +232,17 @@ describe('Counter', () => {
 
 &nbsp;
 
+## 三   可预测的函数式 + 可分离的响应式
+
+&nbsp;
+
+<div style="display:flex; justify-content: flex-start;">
+<img src="http://img.wwery.com/tourist/a13320109095059.jpg" width="300"/>
+<img src="http://cyclejs.cn/img/cycle-nested-frontpage.svg" width="300"/>
+</div>	
+
+&nbsp;
+
 **Cycle.js[2]** 将模型中的生产者和观察者合并成了一个围绕应用的执行环境, 并与做为应用程序的纯函数进行循环交互.
 
 &nbsp;
@@ -323,7 +334,7 @@ run(wrappedMain, {
 
 Stream 具备 Observable 的 `迭代器模式 yield + 观察者模式 listen` .
 
-结合了观察者模式的迭代器模式不再需要**拉取**数据的接口(getCurrent, moveToNext, isDone)来遍历各种复杂的数据集合了, 因为订阅了 publisher 之后, 无论数据怎样产生, 同步还是异步, 都会自动**推送**给 observer .
+结合了观察者模式的迭代器模式不再需要**拉取**数据的接口(getCurrent, moveToNext, isDone)来遍历各种复杂的数据集合, 因为订阅了 publisher 之后, 无论数据怎样产生, 同步还是异步, 都会自动**推送**给 observer .
 
 
 [2] cyclejs 的文档和教程细致入微、偏僻入里, 无需再提炼出我的想法, 所以一些文字和代码就直接腾挪了来.
