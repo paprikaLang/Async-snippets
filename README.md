@@ -33,17 +33,16 @@ class Store<A: ActionType, S: StateType, C: CommandType> {
         let (nextState, command) = reducer(state, action)
         state = nextState
         /*
-         不同于 redux 用 action creator 来隔离副作用;
-         这里的副作用如异步请求是交给订阅了 command 的 subscriber 来做的, 
-         command 的闭包接收请求返回的数据再 dispatch 给 reducer,
-         而订阅了 nextState 的 subscriber 才是负责更新 UI 的.
+	 只有订阅了 nextState 的 subscriber 才是负责更新 UI 的;
+         而订阅了 command 的 subscriber 可以触发副作用, 和 redux 用 action creator 来隔离副作用不同.
+	 比如一个异步请求完成后, command 的闭包会接收请求返回的数据做为 action 的 payload , 再 dispatch 给 reducer;         
         */
         subscriber?(state, previousState, command)
     }
 }
 ```
 
-Command 隔离副作用保证了 `reducer` 函数的纯粹, 是数据可回溯、可预测的关键, redux 的 `action creator` 也是这个用途.  
+`Command` 隔离副作用保证了 `reducer` 函数的纯粹, 这是数据可回溯、可预测的关键.  
 
 ```swift
   /*
@@ -63,14 +62,14 @@ Command 隔离副作用保证了 `reducer` 函数的纯粹, 是数据可回溯�
 
 &nbsp; 
 
-redux 另外一种隔离副作用的方法是 `中间件`, createStore 的第三个参数 `applyMiddleware` 可以重写 dispatch , 使得 action 在进入 dispatch 之前要先经过中间件的处理.
+redux 另一种隔离副作用的方法是 `中间件`, createStore 的第三个参数 `applyMiddleware` 可以重写 dispatch , 使得 action 在进入 dispatch 之前要先经过中间件的处理.
 
 
 <img src="https://user-gold-cdn.xitu.io/2018/12/16/167b79c4d7931231?imageView2/0/w/1280/h/960/ignore-error/1" width="600"/>
 
 ```javascript
-// 中间件要先校验 action , 符合条件的处理后要再 dispatch 出去一个新的 action ; 而校验未通过的 action 会传给下一个中间件.
-// 所以 action、dispatch、next 是中间件必需的参数.
+// 中间件要先校验 action , 符合条件的处理后要再 dispatch 出去一个 action ; 而校验未通过的 action 会传给下一个中间件.
+// 根据这个原理先自定义两个中间件.
 const reduxArray = ({ dispatch, getState }) => next => action => {
   if (Array.isArray(action)) {
     return action.forEach(act => dispatch(act))
@@ -84,7 +83,7 @@ const reduxThunk = ({ dispatch, getState }) => next => action => {
   return next(action)
 }
 
-// applyMiddleware 要把中间件像这样垒起来.
+// applyMiddleware 要能把中间件像这样垒起来.
 const reduxThunk = ({ dispatch, getState }) => next => action => {
   // reduxThunk 的校验和处理动作
   ... ...
@@ -95,8 +94,8 @@ const reduxThunk = ({ dispatch, getState }) => next => action => {
   }
 }
 
-// 中间件 reduxThunk 的返回值从结构看是 reduxThunk 的参数, 从内容看则是 reduxArray(next1) 的返回值.
-// 这个逻辑可以用 reduce 实现.
+// 中间件 reduxThunk 的返回值从结构上看是 reduxThunk 的参数, 从内容上看则是 reduxArray(next1) 的返回值.
+// 这个可以用 reduce 实现.
 export function compose(...fns) {
   if (fns.length === 0) return arg => arg
   if (fns.length === 1) return fns[0]
@@ -127,17 +126,17 @@ export function applyMiddleware(...middlewares) {
 
 &nbsp;
 
-可以说 ` if语句 + 处理副作用的 action creator = 中间件 ` , 而 `redux-observable` 中间件借助了 RxJS 强大的异步和转换能力在这两个要素上都有着极其灵活的可操作性. 
+可以说中间件就是 ` 判断语句 + 处理副作用的 action creator ` , 而 `redux-observable` 中间件借助了 RxJS 强大的异步和转换能力在这两个要素上都有着极其灵活的可操作性. 
 
 ```javascript
 const fetchUser = username => ({ type: FETCH_USER, payload: username });
 const fetchUserFulfilled = payload => ({ type: FETCH_USER_FULFILLED, payload });
 /*
   首先要把 action 看做是时间维度上的集合 action$ ,
-  redux-observable 的核心 ---- epic 函数, 会接收这个 action$ , 经过业务逻辑处理, 最后返回一个新的 action$.
+  redux-observable 的核心 ---- epic 函数会接收这个 action$ , 经过它的业务逻辑处理, 最后返回一个 action$.
 */ 
 const fetchUserEpic = action$ => action$.pipe(
-  ofType(FETCH_USER), //  if语句
+  ofType(FETCH_USER), //  判断语句
   mergeMap(action =>  //  处理副作用的 action creator
     ajax.getJSON(`https://api.github.com/users/${action.payload}`).pipe(
       map(response => fetchUserFulfilled(response))
@@ -145,9 +144,9 @@ const fetchUserEpic = action$ => action$.pipe(
   )
 );
 /*
-  如果 action$ 可以继续传入 reducer 中, 那么我们就能以流的形式实现了 applyMiddleware 构建的管道, 即:
+  如果 action$ 能传入 reducer 中, 那就相当于以流的形式实现了 applyMiddleware 构建的 action 管道, 即:
   epic(action$, state$).scan(reducer).do(state => getState());
-  而现实点的话, 我们可以设计一个接收 action$ 的 Store, 即:
+  如果现实一点, 我们也可以设计一个接收 action$ 的 Store, 即:
   epic(action$, state$).subscribe(reactiveStore.dispatch) + createReactiveStore { $action.scan(reducer) }
 */
 dispatch(fetchUser('torvalds'));
@@ -243,15 +242,15 @@ describe('Counter', () => {
 
 &nbsp;
 
-**Cycle.js[2]** 将模型中的生产者和观察者合并成了一个围绕应用的执行环境, 并与做为应用程序的纯函数进行循环交互.
+**Cycle.js[2]** 将生产者和观察者合并成了一个围绕应用的执行环境, 并与做为应用程序的纯函数进行循环交互.
 
 &nbsp;
 
 ```javascript
 /*
-    我们现在按照cyclejs 的原理将前面RxJS测试的例子改造一下: 
+    我们现在为了还原 cyclejs 的大致原理要将前面关于RxJS测试的例子改造一下: 
     先前的观察者做好本职的同时还要负责返回本该生产者交给纯函数的 observable,
-    这样就相当于将生产者和观察者首尾相连封装在了一个函数里, 而这个函数就可以作为执行环境与纯函数循环交互了.
+    这样就相当于将生产者和观察者首尾相连封装在了一个函数里, 而这个函数也可以作为执行环境与纯函数循环交互了.
 */
 function main(sources) {     // 纯函数
 	const click$ = sources.DOM;
@@ -266,7 +265,7 @@ function main(sources) {     // 纯函数
 
 function domDriver(text$) {  // 封装了生产者与观察者的执行环境
     // 如果纯函数传过来的{ DOM: text$ }能包含简单的 vdom 数据, 就可以解决这里的硬编码问题;
-    // 或者我们自己实现 hyperscript helper functions, 比如: @cycle/react-native, 把 domDriver 变成一个插件
+    // 或者我们自己实现 hyperscript helper functions, 比如: @cycle/react-native, 并把 domDriver 变成一个插件
 	text$.subscribe({
 		next: str => {
 			const elem = document.querySelector('#app');
@@ -278,7 +277,7 @@ function domDriver(text$) {  // 封装了生产者与观察者的执行环境
 	return domsource;
 }
 /*
-domDriver 这样改动后会引出一个 circle dependencies of stream 问题, xstream 的 imitate 可以解决:
+domDriver 这样改动后会引出一个 circle dependencies of stream 问题, 不过 xstream 的 imitate 可以解决:
     const sinks = main({DOM: domsource});    // 纯函数需要 domDriver 提供的 sources
     const domsource = domDriver(sinks);      // domDriver 需要纯函数返回的 sinks
 */
