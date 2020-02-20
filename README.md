@@ -5,7 +5,7 @@
 
 &nbsp; 
 
-这是一个在移动端用 Redux 的状态管理模式构建出来的[[单向数据流动的函数式 View Controller]]( https://onevcat.com/2017/07/state-based-viewcontroller/). 
+这是一个在移动端按照 Redux 的状态管理模式构建出来的[[单向数据流动的函数式 View Controller]]( https://onevcat.com/2017/07/state-based-viewcontroller/). 
 
 <img src="https://onevcat.com/assets/images/2017/view-controller-states.svg" width="600"/>
 
@@ -43,7 +43,7 @@ class Store<A: ActionType, S: StateType, C: CommandType> {
 }
 ```
 
-隔离副作用来保证 `reducer` 函数的纯粹是数据可回溯、可预测的关键, redux 的 `action creator` 和 Command 都是这个用途.  
+Command 隔离副作用保证了 `reducer` 函数的纯粹, 是数据可回溯、可预测的关键, redux 的 `action creator` 也是这个用途.  
 
 ```swift
   /*
@@ -221,7 +221,7 @@ describe('Counter', () => {
 
 &nbsp;
 
-**Flutter** 依据这个响应式的 `生产者 -- 纯函数 -- 观察者` 模型, 打造了自己的业务逻辑组件 ---- Bloc ( Business Logic Component). 
+**Flutter** 依照这个响应式的 `生产者 -- 纯函数 -- 观察者` 模型, 打造了自己的业务逻辑组件 ---- Bloc ( Business Logic Component). 
 
 图中做为生产者的 sink 可以向 `Bloc` 内部监听它的 stream[1] 传输数据; 再由另一个 stream (因为是不同 StreamController 创建的)将处理好的数据传给它的观察者 StreamBuilder 并同步更新这个部件.
 
@@ -237,8 +237,8 @@ describe('Counter', () => {
 &nbsp;
 
 <div style="display:flex; justify-content: flex-start;">
-<img src="http://img.wwery.com/tourist/a13320109095059.jpg" width="300"/>
-<img src="http://cyclejs.cn/img/cycle-nested-frontpage.svg" width="300"/>
+<img src="http://img.wwery.com/tourist/a13320109095059.jpg" width="350"/>
+<img src="http://cyclejs.cn/img/cycle-nested-frontpage.svg" width="350"/>
 </div>	
 
 &nbsp;
@@ -249,24 +249,24 @@ describe('Counter', () => {
 
 ```javascript
 /*
-    接下来我们将前面RxJS测试的例子改造一下, 大致实现一下 cyclejs 的原理: 
-    先前的观察者做好本职的同时还要负责返回原本该生产者交给业务逻辑组件的 observable.
-    这样就相当于生产者和观察者首尾相连封装在了一个函数里, 而这个函数就作为执行环境与业务逻辑组件循环交互.
+    我们现在按照cyclejs 的原理将前面RxJS测试的例子改造一下: 
+    先前的观察者做好本职的同时还要负责返回本该生产者交给纯函数的 observable,
+    这样就相当于将生产者和观察者首尾相连封装在了一个函数里, 而这个函数就可以作为执行环境与纯函数循环交互了.
 */
-function main(sources) {     // 业务逻辑组件
+function main(sources) {     // 纯函数
 	const click$ = sources.DOM;
 	return {
 	     DOM: click$.startWith(null).map(() => 
-                 xs.periodic(1000)  // xstream 可以简单理解为 Rx observable.
+                 xs.periodic(1000)  // xstream 可以简单理解为 Rx 的 observable.
                  .fold(prev => prev+1, 0)
 		).flatten()
 		.map(i => `Seconds elapased: ${i}`)
 	};
 }
 
-function domDriver(text$) {  // 封装了原生产者与观察者的执行环境
-    // 如果业务逻辑组件能传过来简单的 vdom 数据, 就可以解决这里的硬编码问题;
-    // 或者干脆自己实现 hyperscript helper functions, 把domDriver做成一个插件, 如: @cycle/react-native
+function domDriver(text$) {  // 封装了生产者与观察者的执行环境
+    // 如果纯函数传过来的{ DOM: text$ }能包含简单的 vdom 数据, 就可以解决这里的硬编码问题;
+    // 或者我们自己实现 hyperscript helper functions, 比如: @cycle/react-native, 把 domDriver 变成一个插件
 	text$.subscribe({
 		next: str => {
 			const elem = document.querySelector('#app');
@@ -274,14 +274,13 @@ function domDriver(text$) {  // 封装了原生产者与观察者的执行环境
 		}
 	})
 	// 以上是原观察者, 以下是原生产者.
-	const domsource = fromEvent(document, 'click'); // xstream
+	const domsource = fromEvent(document, 'click'); // xstream 的 事件源.
 	return domsource;
 }
 /*
-这样改动后 domDriver 会引出一个 circle dependencies 问题, 即:
-    const sinks = main({DOM: domsource});  // 业务逻辑组件需要执行环境提供的 sources
-    const domsource = domDriver(sinks);      // 执行环境需要业务组件的 sinks
-好在 xstream 的 imitate 可以解决.
+domDriver 这样改动后会引出一个 circle dependencies of stream 问题, xstream 的 imitate 可以解决:
+    const sinks = main({DOM: domsource});    // 纯函数需要 domDriver 提供的 sources
+    const domsource = domDriver(sinks);      // domDriver 需要纯函数返回的 sinks
 */
 function run(main, domDriver) {
 	const fakeDOMSink = xs.create();
@@ -299,10 +298,10 @@ function run(main, domDriver) {
 &nbsp;
 
 ```javascript
+import {run} from '@cycle/run';
+import {div, label, input, hr, h1, makeDOMDriver} from '@cycle/dom';
 import {withState} from '@cycle/state';
-import {run} from '@cycle/run'
-import {div, label, input, hr, h1, makeDOMDriver} from '@cycle/dom'
-// cyclejs 将 state$ 作为 sources , 将 reducer$ 作为 sinks , 实现了自己的状态管理.
+// cyclejs 将 state$ 作为 sources , 将 reducer$ 作为 sinks , 实现了可预测、可分离的状态管理.
 function main(sources) {
   const state$ = sources.state.stream;
   const vdom$ = state$.map(state => /* render virtual DOM here */);
@@ -334,7 +333,7 @@ run(wrappedMain, {
 
 Stream 具备 Observable 的 `迭代器模式 yield + 观察者模式 listen` .
 
-结合了观察者模式的迭代器模式不再需要**拉取**数据的接口(getCurrent, moveToNext, isDone)来遍历各种复杂的数据集合, 因为订阅了 publisher 之后, 无论数据怎样产生, 同步还是异步, 都会自动**推送**给 observer .
+结合了观察者模式的迭代器不再需要**拉取**数据的接口(getCurrent, moveToNext, isDone)来遍历各种复杂的数据集合, 因为订阅了 publisher 之后, 无论数据怎样产生, 同步还是异步, 都会自动**推送**给 observer .
 
 
 [2] cyclejs 的文档和教程细致入微、偏僻入里, 无需再提炼出我的想法, 所以一些文字和代码就直接腾挪了来.
