@@ -1,7 +1,7 @@
 
 &nbsp; 
 
-## 一 可预测的函数式
+## 一   可预测的函数式
 
 &nbsp; 
 
@@ -121,7 +121,9 @@ export function applyMiddleware(...middlewares) {
 
 &nbsp;
 
-## 二 可分离的响应式
+&nbsp;
+
+## 二   可分离的响应式
 
 &nbsp;
 
