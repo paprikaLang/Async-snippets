@@ -42,7 +42,7 @@ class Store<A: ActionType, S: StateType, C: CommandType> {
 }
 ```
 
-数据可回溯、可预测的关键在于隔离副作用, 确保 reducer 是一个纯函数. `Command` 和 redux 的 action creator 都是这个目的.
+数据可回溯、可预测的关键在于隔离副作用, 确保 reducer 是一个纯函数. `Command` 和 redux 的 `action creator` 都是这个目的.
 
 ```swift
   /*
@@ -69,10 +69,10 @@ redux 另一种隔离副作用的方法是 `中间件`, createStore 的第三个
 
 ```javascript
 /* 
-   中间件要先校验 action , 校验通过的处理后再次 dispatch ---- 
+   中间件要先校验 action , 校验通过的经过处理后重新 dispatch 一个 action---- 
    校验未通过的传给下一个中间件 ----
    校验都未通过就可以传给 reducer 了.
-   自己实现中间件的话 action、dispatch、next 都是必需的参数.
+   自定义中间件的话, action、dispatch、next 都是必需的参数.
 */
 const reduxArray = ({ dispatch, getState }) => next => action => {
   if (Array.isArray(action)) {
@@ -86,8 +86,7 @@ const reduxThunk = ({ dispatch, getState }) => next => action => {
   }
   return next(action)
 }
-
-
+// applyMiddleware 要把中间件像这样垒起来
 const reduxThunk = ({ dispatch, getState }) => next => action => {
   // reduxThunk 的处理
   ... ...
@@ -98,9 +97,9 @@ const reduxThunk = ({ dispatch, getState }) => next => action => {
   }
 }
 
-// reduxThunk(next) 的返回值是自己的 action => {}.
-// 它的参数 next 是 reduxArray(next1) 的返回值 action => {}, 
-// reduce 操作符可以实现这个逻辑.
+// reduxThunk(next) 的返回值   是自己的 action => {},
+// reduxThunk(next) 的参数next 是 reduxArray(next1) 的返回值 action => {}, 
+// applyMiddleware  用 reduce 来实现最合适.
 export function compose(...fns) {
   if (fns.length === 0) return arg => arg
   if (fns.length === 1) return fns[0]
@@ -130,7 +129,7 @@ export function applyMiddleware(...middlewares) {
 
 &nbsp;
 
-中间件 `redux-observable` 的响应式流可分离一个异步请求的多层回调, 每层回调都能解耦成一个 epic 函数, 函数内部借助 RxJS 操作符可处理复杂的异步操作.
+中间件 `redux-observable` 的响应式流可分离一个异步请求的多层回调, 并将每层回调解耦成一个 epic 函数, 函数内部借助 RxJS 操作符可处理复杂的异步操作.
 
 ```javascript
 const fetchUser = username => ({ type: FETCH_USER, payload: username });
@@ -141,7 +140,7 @@ const fetchUserEpic = action$ => action$.pipe(
   ofType(FETCH_USER), 
   mergeMap(action =>  
     ajax.getJSON(`https://api.github.com/users/${action.payload}`).pipe(
-      map(response => fetchUserFulfilled(response)) //此时 action 的 type 变成了 FETCH_USER_FULFILLED
+      map(response => fetchUserFulfilled(response)) // action 的 type 变成了 FETCH_USER_FULFILLED
     )
   )
 );
@@ -157,7 +156,7 @@ dispatch(fetchUser('torvalds'));
 
 &nbsp;
 
-redux-observable 的响应式流还可分离关注点, 使用者只需专注 epics 之间的业务逻辑而不必知晓这以外的事情.
+redux-observable 的响应式流还可分离关注点, 让使用者只专注 epics 之间的业务逻辑而忽略掉 epics 之外的事情.
 
 <img src="http://img.wwery.com/tourist/a13320109095059.jpg" width="500"/>
 
@@ -203,7 +202,7 @@ describe('Counter', () => {
 
 **Flutter** 设计出了框架层面上的业务逻辑组件 ---- Bloc ( Business Logic Component):
 
-做为生产者的 sink 可以向 `Bloc` 内部监听它的 stream[1] 传输数据; 再由另一个 stream (因为是不同 StreamController 创建的)将处理好的数据传给它的观察者 StreamBuilder 同步更新这个部件.
+做为生产者的 sink 可以向 `Bloc` 内部监听它的 stream 传输数据; 再由另一个 stream (是不同 StreamController 创建的)将处理好的数据传给它的观察者 StreamBuilder 并同步更新这个部件.
 
 <img src="https://upload-images.jianshu.io/upload_images/4044518-e2efb6e9dc3c1dbe.png?imageMogr2/auto-orient/strip|imageView2/2/w/561" width="500" />
 
@@ -230,43 +229,41 @@ describe('Counter', () => {
 ```javascript
 /*
     试着把前面关于 RxJS 测试的例子中的 dom effects 封装成一个 domDriver:
-    先前的观察者现在不仅要接收纯函数返回的 observable -- sinks , 
-    还要负责返回本该由生产者交给纯函数的 observable -- sources . 
+    观察者现在不仅要接收纯函数返回的 observable -- sinks , 
+    还要返回本该由生产者交给纯函数的 observable -- sources . 
 */
-function main(sources) {                            // 纯函数
-	const click$ = sources.DOM;
-	return {
-	     DOM: click$.startWith(null).map(() => 
-                 xs.periodic(1000)  // xstream 可以简单理解为 Rx 的 observable.
-                 .fold(prev => prev+1, 0)
-		).flatten()
-		.map(i => `Seconds elapased: ${i}`)
-	};
+function main(sources) {                // 纯函数
+  const click$ = sources.DOM; 
+    return {
+      DOM: click$.startWith(null).map(() => 
+	 xs.periodic(1000)  // xstream 可以简单理解为 Rx .
+	 .fold(prev => prev+1, 0)
+	).flatten()
+	.map(i => `Seconds elapased: ${i}`)
+    };
 }
 
-function domDriver(text$) {                        // driver 
-    // 如果纯函数传过来的{ DOM: text$ }能包含简单的 vdom 数据, 就可以解决这里的硬编码问题;
-    // 或者干脆自己实现 hyperscript helper functions, 比如: @cycle/react-native .
-	text$.subscribe({
-		next: str => {
-			const elem = document.querySelector('#count');
-			elem.textContent = str;
-		}
-	})
+function domDriver(text$) {             // driver 
+  text$.subscribe({
+    next: str => {
+	const elem = document.querySelector('#count');
+	elem.textContent = str;
+    }
+  })
 	
-	/*
-	  以上是原观察者, 以下是原生产者. 
-	  历史和未来在这里交汇了, 原本分先后的串行变成了环形, 必然会引出一个问题:
-	  circle dependencies of stream.
-	*/
-	
-	const domsource = fromEvent(document, 'click'); // xstream 的 事件源.
-	return domsource;
+ /*
+  以上是原观察者, 以下是原生产者. 
+  原本分先后的串行结构变成了环形, 这样必然会引出一个问题:
+  circle dependencies of stream.
+ */
+
+ const domsource = fromEvent(document, 'click'); 
+ return domsource;
 }
 
 function run(main, domDriver) {
 	/*
-	  上面提到的 circle dependencies of stream 问题, 这里用xstream 的 imitate 解决了
+	  上面提到的 circle dependencies of stream 问题, 在这里可以用 xstream 的 imitate 解决了
 	  const sinks = main({DOM: domsource});    // 纯函数需要 domDriver 提供的 sources
 	  const domsource = domDriver(sinks);      // domDriver 需要纯函数返回的 sinks
 	*/
@@ -284,10 +281,11 @@ function run(main, domDriver) {
 &nbsp;
 
 ```javascript
+// cyclejs 将 state$ 做为 sources , 将 reducer$ 做为 sinks , 实现了可预测、可分离的状态管理.
 import {run} from '@cycle/run';
 import {div, label, input, hr, h1, makeDOMDriver} from '@cycle/dom';
 import {withState} from '@cycle/state';
-// cyclejs 将 state$ 做为 sources , 将 reducer$ 做为 sinks , 实现了可预测、可分离的状态管理.
+
 function main(sources) {
   const state$ = sources.state.stream;
   const vdom$ = state$.map(state => /* render virtual DOM here */);
@@ -310,12 +308,6 @@ run(wrappedMain, {
 ```
 
 &nbsp; 
-
-&nbsp; 
-
-&nbsp; 
-
-[1]  Stream 具备 observable 的迭代器模式和观察者模式. 结合了观察者模式的迭代器模式不再需要**拉取**数据的接口(getCurrent, moveToNext, isDone)来遍历各种复杂的数据集合. 因为订阅了 publisher 之后, 无论数据怎样产生, 同步还是异步, 都会自动**推送**给 observer .
 
 
 
