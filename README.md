@@ -130,7 +130,7 @@ export function applyMiddleware(...middlewares) {
 
 &nbsp;
 
-如果一个 action 的 payload 需要经过复杂的异步操作或是一个回调地狱才能获得, 可以让它进入中间件 `redux-observable` 的响应式流中, 借助 RxJS 支持复杂异步操作的能力和灵活转换、分解的能力, 将每一层回调都解耦成一个 epic 函数, 分而治之.
+中间件 `redux-observable` 的响应式流可分离一个异步请求的多层回调, 每层回调都能解耦成一个 epic 函数, 函数内部借助 RxJS 操作符可处理复杂的异步操作.
 
 ```javascript
 const fetchUser = username => ({ type: FETCH_USER, payload: username });
@@ -149,7 +149,7 @@ const fetchUserFulfilledEpic = action$ =>
   action$
     .ofType(FETCH_USER_FULFILLED)                 
     .delay(2000)
-    .mergeMap(({ payload: { msg } }) => showMessage(msg)) // 展示上层回调传下来的数据. 
+    .mergeMap(({ payload: { msg } }) => showMessage(msg)) 
 
 const rootEpic = combineEpics(fetchUserEpic, fetchUserFulfilledEpic)
 dispatch(fetchUser('torvalds'));
@@ -157,7 +157,7 @@ dispatch(fetchUser('torvalds'));
 
 &nbsp;
 
-redux-observable 的响应式流还起到了分离关注点的作用, 使用者只需专注 epics 之间的业务逻辑而不必知晓这以外的事情.
+redux-observable 的响应式流还可分离关注点, 使用者只需专注 epics 之间的业务逻辑而不必知晓这以外的事情.
 
 <img src="http://img.wwery.com/tourist/a13320109095059.jpg" width="500"/>
 
@@ -223,7 +223,7 @@ describe('Counter', () => {
 
 &nbsp;
 
-**Cycle.js** 更进一步, 整个应用程序就是一个业务逻辑组件. 它将生产者和观察者整个合并成了应用程序的执行环境, 不同副作用的资源和底层指令封装在各自的 driver 函数中互不干扰, 并通过读写副作用的流与应用程序进行循环交互.
+**Cycle.js** 更进一步, 它的整个应用程序就是一个业务逻辑组件(纯函数); 生产者和观察者合并成了应用程序的执行环境, 不同副作用的资源和底层指令封装在各自的 driver 函数中互不干扰, 并通过读写副作用的流与应用程序进行循环交互.
 
 &nbsp;
 
