@@ -123,7 +123,7 @@ export function applyMiddleware(...middlewares) {
 
 &nbsp;
 
-中间件 `redux-observable` 借助 RxJS 的 reactive streams -- **epics** 能够处理 action$ 复杂的异步逻辑和解耦的工作流程.
+中间件 `redux-observable` 借助 RxJS 的 reactive streams -- **epics** 能够在 action$ 解耦的工作流程中处理复杂的异步逻辑.
 
 ```javascript
 const fetchUser = username => ({ type: FETCH_USER, payload: username });
