@@ -228,22 +228,22 @@ describe('Counter', () => {
 
 ```javascript
 /*
-    试着把前面关于 RxJS 测试的例子中的 dom effects 封装成一个 domDriver:
+    这里, 把前面关于 RxJS 测试的例子中的 dom effects 试着封装成一个 domDriver:
     观察者现在不仅要接收纯函数返回的 observable -- sinks , 
     还要返回本该由生产者交给纯函数的 observable -- sources . 
 */
-function main(sources) {                // 纯函数
+function main(sources) {                
   const click$ = sources.DOM; 
     return {
       DOM: click$.startWith(null).map(() => 
 	 xs.periodic(1000)  // xstream 可以简单理解为 Rx .
 	 .fold(prev => prev+1, 0)
 	).flatten()
-	.map(i => `Seconds elapased: ${i}`)
+	.map(i => `${i}`)
     };
 }
 
-function domDriver(text$) {             // driver 
+function domDriver(text$) {             
   text$.subscribe({
     next: str => {
 	const elem = document.querySelector('#count');
@@ -253,8 +253,7 @@ function domDriver(text$) {             // driver
 	
  /*
   以上是原观察者, 以下是原生产者. 
-  原本分先后的串行结构变成了环形, 这样必然会引出一个问题:
-  circle dependencies of stream.
+  原本分先后的串行结构变成了环形, 这样必然会引出一个问题: circle dependencies of stream.
  */
 
  const domsource = fromEvent(document, 'click'); 
@@ -263,7 +262,7 @@ function domDriver(text$) {             // driver
 
 function run(main, domDriver) {
 	/*
-	  上面提到的 circle dependencies of stream 问题, 在这里可以用 xstream 的 imitate 解决了
+	  上面提到的 circle dependencies of stream 问题, 在这里用 xstream 的 imitate 解决
 	  const sinks = main({DOM: domsource});    // 纯函数需要 domDriver 提供的 sources
 	  const domsource = domDriver(sinks);      // domDriver 需要纯函数返回的 sinks
 	*/
@@ -275,25 +274,45 @@ function run(main, domDriver) {
 ```
 
 &nbsp;
-
+  
 > 在 Cycle.js 中，可以认为“操作系统”就是围绕应用的执行环境。大致来说，DOM、console、JavaScript 和 JS API 都扮演了 web 开发中操作系统的角色。我们需要软件适配器来与浏览器或者其他环境（例如 Node.js）进行交互。Cycle.js 的 driver 就是外界（包括用户以及 JavaScript 执行环境）与 Cycle.js 工具构建的应用世界之间的适配器.
 
 &nbsp;
 
+cyclejs 中不会出现没有返回值的 dispatch(action), 我们需要声明式地消化掉这个方法和它的副作用:
+
+```
+const addReducer$ = xs.periodic(1000).mapTo(function addReducer(state) { return state + 1; });
+
+const state$ = mergedReducer$.scan((state, reducer) => reducer(state), initialState);
+```
+
+&nbsp;
+
+同时, cyclejs 的状态管理模型维持了它的分形结构, 每层模型对应的组件、组件 state$ 对应的状态树节点都需要 isolate 方法分离出来.
+
+```
+const {state: reducer$} = isolate(Component, '节点')(sources).
+```
+
+> When state source crosses the isolation boundary from parent into child, we “peel off” the state object using the isolation scope. Then, when crossing the isolation boundary from child back to the parent, we “wrap” the reducer function using the isolation scope. This layered structure is called an “onion architecture” in other programming contexts.
+
+&nbsp;
+
 ```javascript
-// cyclejs 将 state$ 做为 sources , 将 reducer$ 做为 sinks , 实现了可预测、可分离的状态管理.
 import {run} from '@cycle/run';
 import {div, label, input, hr, h1, makeDOMDriver} from '@cycle/dom';
 import {withState} from '@cycle/state';
+import isolate from '@cycle/isolate';
 
 function main(sources) {
-  const state$ = sources.state.stream;
+  const state$ = sources.state.stream; // emits { foo, bar, child: { count: 2 } }
+  const childSinks = isolate(Child, 'child')(sources);  
   const vdom$ = state$.map(state => /* render virtual DOM here */);
-
-  const initialReducer$ = xs.of(function initialReducer() { return 0; });
-  const addOneReducer$ = xs.periodic(1000)
-    .mapTo(function addOneReducer(prev) { return prev + 1; });
-  const reducer$ = xs.merge(initialReducer$, addOneReducer$);
+  ... ...
+  const parentReducer$ = xs.merge(initReducer$, someOtherReducer$);
+  const childReducer$ = childSinks.state; 
+  const reducer$ = xs.merge(parentReducer$, childReducer$);
 
   return {
     DOM: vdom$,
@@ -303,7 +322,7 @@ function main(sources) {
 const wrappedMain = withState(main);
 
 run(wrappedMain, {
-  DOM: makeDOMDriver('#app'),
+  DOM: makeDOMDriver('#app')
 });
 ```
 
