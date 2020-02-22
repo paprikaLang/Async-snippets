@@ -228,7 +228,7 @@ describe('Counter', () => {
 
 ```javascript
 /*
-    这里, 把前面关于 RxJS 测试的例子中的 dom effects 试着封装成一个 domDriver:
+    这里, 将前面关于 RxJS 测试的例子中的 dom effects 封装成一个 domDriver:
     观察者现在不仅要接收纯函数返回的 observable -- sinks , 
     还要返回本该由生产者交给纯函数的 observable -- sources . 
 */
@@ -262,7 +262,7 @@ function domDriver(text$) {
 
 function run(main, domDriver) {
 	/*
-	  上面提到的 circle dependencies of stream 问题, 在这里用 xstream 的 imitate 解决
+	  上面提到的 circle dependencies of stream 问题, 用 xstream 的 imitate 解决
 	  const sinks = main({DOM: domsource});    // 纯函数需要 domDriver 提供的 sources
 	  const domsource = domDriver(sinks);      // domDriver 需要纯函数返回的 sinks
 	*/
@@ -279,9 +279,9 @@ function run(main, domDriver) {
 
 &nbsp;
 
-cyclejs 中不会出现没有返回值的 dispatch(action), 我们需要声明式地消化掉这个方法和它的副作用:
+cyclejs 中不会出现没有返回值的 dispatch(action) ,  我们需要声明式地消化掉这个方法和它的副作用:
 
-```
+```javascript
 const addReducer$ = xs.periodic(1000).mapTo(function addReducer(state) { return state + 1; });
 
 const state$ = mergedReducer$.scan((state, reducer) => reducer(state), initialState);
@@ -291,7 +291,7 @@ const state$ = mergedReducer$.scan((state, reducer) => reducer(state), initialSt
 
 同时, cyclejs 的状态管理模型维持了它的分形结构, 每层模型对应的组件、组件 state$ 对应的状态树节点都需要 isolate 方法分离出来.
 
-```
+```javascript
 const {state: reducer$} = isolate(Component, '节点')(sources).
 ```
 
