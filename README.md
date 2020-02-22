@@ -283,7 +283,7 @@ cyclejs 中不会出现没有返回值的 dispatch(action) ,  我们需要声明
 
 ```javascript
 const addReducer$ = xs.periodic(1000).mapTo(function addReducer(state) { return state + 1; });
-
+// 这一步在 driver 中进行, mergedReducer$ 和 state$ 要分别加入到 sinks 和 sources 中.
 const state$ = mergedReducer$.scan((state, reducer) => reducer(state), initialState);
 ```
 
