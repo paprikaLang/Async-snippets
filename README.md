@@ -96,10 +96,11 @@ const reduxThunk = ({ dispatch, getState }) => next => action => {
     return next1(action) 
   }
 }
-
-// reduxThunk(next) 的返回值   是自己的 action => {},
-// reduxThunk(next) 的参数next 是 reduxArray(next1) 的返回值 action => {}, 
-// applyMiddleware  用 reduce 来实现最合适.
+/*
+reduxThunk(next) 的返回值   是自己的 action => {},
+reduxThunk(next) 的参数next 是 reduxArray(next1) 的返回值 action => {}, 
+applyMiddleware  用 reduce 来实现最合适.
+*/
 export function compose(...fns) {
   if (fns.length === 0) return arg => arg
   if (fns.length === 1) return fns[0]
@@ -156,7 +157,7 @@ dispatch(fetchUser('torvalds'));
 
 &nbsp;
 
-redux-observable 的响应式流还可分离关注点, 让使用者只专注 epics 之间的业务逻辑而忽略掉 epics 之外的事情.
+redux-observable 的响应式流还可分离关注点, 让使用者只需专注 epics 之间的业务逻辑而忽略掉 epics 之外的事情.
 
 <img src="http://img.wwery.com/tourist/a13320109095059.jpg" width="500"/>
 
@@ -233,7 +234,7 @@ describe('Counter', () => {
     还要返回本该由生产者交给纯函数的 observable -- sources . 
 */
 function main(sources) {                
-  const click$ = sources.DOM; 
+    const click$ = sources.DOM; 
     return {
       DOM: click$.startWith(null).map(() => 
 	 xs.periodic(1000)  // xstream 可以简单理解为 Rx .
@@ -249,27 +250,25 @@ function domDriver(text$) {
 	const elem = document.querySelector('#count');
 	elem.textContent = str;
     }
-  })
-	
- /*
-  以上是原观察者, 以下是原生产者. 
-  原本分先后的串行结构变成了环形, 这样必然会引出一个问题: circle dependencies of stream.
- */
-
- const domsource = fromEvent(document, 'click'); 
- return domsource;
+  })	
+  /*
+    以上是原观察者, 以下是原生产者. 
+    原本分先后的串行结构变成了环形, 这样必然会引出一个问题: circle dependencies of stream.
+  */
+  const domsource = fromEvent(document, 'click'); 
+  return domsource;
 }
 
 function run(main, domDriver) {
-	/*
-	  上面提到的 circle dependencies of stream 问题, 用 xstream 的 imitate 解决
-	  const sinks = main({DOM: domsource});    // 纯函数需要 domDriver 提供的 sources
-	  const domsource = domDriver(sinks);      // domDriver 需要纯函数返回的 sinks
-	*/
-	const fakeDOMSink = xs.create();
-	const domsource = domDriver(fakeDOMSink);
-	const sinks = main({DOM: domsource});
-	fakeDOMSink.imitate(sinks.DOM);     
+  /*
+    用 xstream 的 imitate 解决上面提到的 circle dependencies of stream 问题
+    const sinks = main({DOM: domsource});    // 纯函数需要 domDriver 提供的 sources
+    const domsource = domDriver(sinks);      // domDriver 需要纯函数返回的 sinks
+  */
+  const fakeDOMSink = xs.create();
+  const domsource = domDriver(fakeDOMSink);
+  const sinks = main({DOM: domsource});
+  fakeDOMSink.imitate(sinks.DOM);     
 }
 ```
 
@@ -282,17 +281,17 @@ function run(main, domDriver) {
 cyclejs 中不会出现没有返回值的 dispatch(action) ,  我们需要声明式地消化掉这个方法和它的副作用:
 
 ```javascript
-const addReducer$ = xs.periodic(1000).mapTo(function addReducer(state) { return state + 1; });
+const addReducer$ = actionA$.mapTo(function addReducer(state) { return state + 1; });
 // 这一步在 driver 中进行, mergedReducer$ 和 state$ 要分别加入到 sinks 和 sources 中.
 const state$ = mergedReducer$.scan((state, reducer) => reducer(state), initialState);
 ```
 
 &nbsp;
 
-同时, cyclejs 的状态管理模型维持了它的分形结构, 每层模型对应的组件、组件 state$ 对应的状态树节点都需要 isolate 方法分离出来.
+同时, cyclejs 的状态管理模型维持了它的分形结构, 每层模型对应的组件、组件 state$ 对应的状态树节点都需要 isolate 方法剥离出来.
 
 ```javascript
-const {state: reducer$} = isolate(Component, '节点')(sources).
+const {state: reducer$} = isolate(Component, '节点')(sources); //节点对应的 reducer 再被上一层包裹起来.
 ```
 
 > When state source crosses the isolation boundary from parent into child, we “peel off” the state object using the isolation scope. Then, when crossing the isolation boundary from child back to the parent, we “wrap” the reducer function using the isolation scope. This layered structure is called an “onion architecture” in other programming contexts.
@@ -306,19 +305,20 @@ import {withState} from '@cycle/state';
 import isolate from '@cycle/isolate';
 
 function main(sources) {
-  const state$ = sources.state.stream; // emits { foo, bar, child: { count: 2 } }
+  const state$ = sources.state.stream; // state object emits { foo, bar, child: { count: 2 } } 
   const childSinks = isolate(Child, 'child')(sources);  
   const vdom$ = state$.map(state => /* render virtual DOM here */);
   ... ...
   const parentReducer$ = xs.merge(initReducer$, someOtherReducer$);
   const childReducer$ = childSinks.state; 
-  const reducer$ = xs.merge(parentReducer$, childReducer$);
+  const reducer$ = xs.merge(parentReducer$, childReducer$); 
 
   return {
     DOM: vdom$,
     state: reducer$,
   };
 }
+
 const wrappedMain = withState(main);
 
 run(wrappedMain, {
