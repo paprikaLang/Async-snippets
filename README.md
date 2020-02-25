@@ -294,7 +294,7 @@ const state$ = mergedReducer$.scan((state, reducer) => reducer(state), initialSt
 const {state: reducer$} = isolate(Component, '节点')(sources); //节点对应的 reducer 再被上一层包裹起来.
 ```
 
-> When state source crosses the isolation boundary from parent into child, we “peel off” the state object using the isolation scope. Then, when crossing the isolation boundary from child back to the parent, we “wrap” the reducer function using the isolation scope. This layered structure is called an “onion architecture” in other programming contexts.
+> When state source crosses the isolation boundary from parent into child, we “peel off” the state object using the isolation scope. Then, when crossing the isolation boundary from child back to the parent, we “wrap” the reducer function using the isolation scope. This layered structure is called an “onion architecture” in other programming contexts(如: koa 中间件的洋葱模型).
 
 &nbsp;
 
