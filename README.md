@@ -161,6 +161,8 @@ redux-observable 的响应式流还可分离关注点, 让使用者只需专注 
 
 <img src="https://cdn.jsdelivr.net/gh/paprikaLang/tti@master/tti/rxjs.jpg" width="500"/>
 
+![](https://cdn.jsdelivr.net/gh/paprikaLang/tti@master/tti/rxjs.jpg)
+
 &nbsp;
 
 RxJS 项目在测试时, 也会将一些无关的外部逻辑隔离在 "epic" 函数外, 来提高业务代码的可测试性.
