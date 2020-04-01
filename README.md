@@ -161,7 +161,7 @@ redux-observable 的响应式流还可分离关注点, 让使用者只需专注 
 
 <img src="https://cdn.jsdelivr.net/gh/paprikaLang/tti@master/tti/rxjs.jpg" width="500"/>
 
-![](https://cdn.jsdelivr.net/gh/paprikaLang/tti@master/tti/rxjs.jpg)
+![](https://upic.paprikalang.site/rxjs.jpg)
 
 &nbsp;
 
