@@ -65,7 +65,7 @@ class Store<A: ActionType, S: StateType, C: CommandType> {
 redux 另一种隔离副作用的方法是 `中间件`, createStore 的第三个参数 `applyMiddleware` 可以重写 dispatch , 使得 action 在进入 reducer 之前要先经过中间件的处理.
 
 
-<img src="https://upic.paprikalang.site/paw.jpg" width="600"/>
+<img src="https://i.loli.net/2020/04/01/TMqEvbDlINKfsVG.jpg" width="600"/>
 
 ```javascript
 /* 
@@ -159,7 +159,7 @@ dispatch(fetchUser('torvalds'));
 
 redux-observable 的响应式流还可分离关注点, 让使用者只需专注 epics 之间的业务逻辑而忽略掉 epics 之外的事情.
 
-<img src="https://upic.paprikalang.site/rxjs.jpg" width="500"/>
+<img src="https://cdn.jsdelivr.net/gh/paprikaLang/tti@master/tti/rxjs.jpg" width="500"/>
 
 &nbsp;
 
@@ -205,7 +205,7 @@ describe('Counter', () => {
 
 做为生产者的 sink 可以向 `Bloc` 内部监听它的 stream 传输数据; 再由另一个 stream (是不同 StreamController 创建的)将处理好的数据传给它的观察者 StreamBuilder 并同步更新这个部件.
 
-<img src="https://upic.paprikalang.site/rxjs-flutter.jpg" width="500" />
+<img src="https://i.loli.net/2020/04/01/6X8aztKG75lojIi.jpg" width="500" />
 
 
 &nbsp;
@@ -217,7 +217,7 @@ describe('Counter', () => {
 &nbsp;
 
 <div style="display:flex; justify-content: flex-start;">
-<img src="https://upic.paprikalang.site/rxjs.jpg" width="350"/>
+<img src="https://cdn.jsdelivr.net/gh/paprikaLang/tti@master/tti/rxjs.jpg" width="350"/>
 <img src="http://cyclejs.cn/img/cycle-nested-frontpage.svg" width="350"/>
 </div>	
 
