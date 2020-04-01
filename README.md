@@ -65,7 +65,7 @@ class Store<A: ActionType, S: StateType, C: CommandType> {
 redux 另一种隔离副作用的方法是 `中间件`, createStore 的第三个参数 `applyMiddleware` 可以重写 dispatch , 使得 action 在进入 reducer 之前要先经过中间件的处理.
 
 
-<img src="https://i.loli.net/2020/04/01/TMqEvbDlINKfsVG.jpg" width="600"/>
+<img src="http://upic.paprikaLang.site/rxjs-redux.jpg" width="600"/>
 
 ```javascript
 /* 
@@ -159,7 +159,7 @@ dispatch(fetchUser('torvalds'));
 
 redux-observable 的响应式流还可分离关注点, 让使用者只需专注 epics 之间的业务逻辑而忽略掉 epics 之外的事情.
 
-<img src="https://cdn.jsdelivr.net/gh/paprikaLang/tti@master/tti/rxjs.jpg" width="500"/>
+<img src="http://upic.paprikalang.site/rxjs.jpg" width="500"/>
 
 
 &nbsp;
