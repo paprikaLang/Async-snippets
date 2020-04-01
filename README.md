@@ -206,8 +206,9 @@ describe('Counter', () => {
 
 做为生产者的 sink 可以向 `Bloc` 内部监听它的 stream 传输数据; 再由另一个 stream (是不同 StreamController 创建的)将处理好的数据传给它的观察者 StreamBuilder 并同步更新这个部件.
 
-<img src="https://i.loli.net/2020/04/01/6X8aztKG75lojIi.jpg" width="500" />
+<!--<img src="https://i.loli.net/2020/04/01/6X8aztKG75lojIi.jpg" width="500" />-->
 
+<img src="http://upic.paprikaLang.site/rxjs-flutter.jpg" width="500" />
 
 &nbsp;
 
