@@ -219,7 +219,7 @@ describe('Counter', () => {
 &nbsp;
 
 <div style="display:flex; justify-content: flex-start;">
-<img src="https://cdn.jsdelivr.net/gh/paprikaLang/tti@master/tti/rxjs.jpg" width="350"/>
+<img src="http://upic.paprikalang.site/rxjs.jpg" width="350"/>
 <img src="http://cyclejs.cn/img/cycle-nested-frontpage.svg" width="350"/>
 </div>	
 
