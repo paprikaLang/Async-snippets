@@ -159,7 +159,7 @@ dispatch(fetchUser('torvalds'));
 
 redux-observable 的响应式流还可分离关注点, 让使用者只需专注 epics 之间的业务逻辑而忽略掉 epics 之外的事情.
 
-<img src="http://upic.paprikalang.site/rxjs.jpg" width="500"/>
+<img src="https://upic.paprikalang.site/rxjs.jpg" width="500"/>
 
 
 &nbsp;
