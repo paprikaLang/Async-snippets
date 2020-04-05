@@ -3,9 +3,9 @@
 
 ## 一   可预测的函数式
 
- 
+&nbsp;
 
-&nbsp;这是一个在移动端按照 redux 状态管理模式构建出来的[[单向数据流动的函数式 View Controller]]( https://onevcat.com/2017/07/state-based-viewcontroller/). 
+这是一个在移动端按照 redux 状态管理模式构建出来的[[单向数据流动的函数式 View Controller]]( https://onevcat.com/2017/07/state-based-viewcontroller/). 
 
 <img src="https://onevcat.com/assets/images/2017/view-controller-states.svg" width="600"/>
 
