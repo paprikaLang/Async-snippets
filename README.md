@@ -65,7 +65,7 @@ class Store<A: ActionType, S: StateType, C: CommandType> {
 redux 另一种隔离副作用的方法是 `中间件`, createStore 的第三个参数 `applyMiddleware` 可以重写 dispatch , 使得 action 在进入 reducer 之前要先经过中间件的处理.
 
 
-<img src="http://upic.paprikaLang.site/rxjs-redux.jpg" width="600"/>
+<img src="https://upic.paprikaLang.site/rxjs-redux.jpg" width="600"/>
 
 ```javascript
 /* 
@@ -208,7 +208,7 @@ describe('Counter', () => {
 
 <!--<img src="https://i.loli.net/2020/04/01/6X8aztKG75lojIi.jpg" width="500" />-->
 
-<img src="http://upic.paprikaLang.site/rxjs-flutter.jpg" width="500" />
+<img src="https://upic.paprikaLang.site/rxjs-flutter.jpg" width="500" />
 
 &nbsp;
 
@@ -219,7 +219,7 @@ describe('Counter', () => {
 &nbsp;
 
 <div style="display:flex; justify-content: flex-start;">
-<img src="http://upic.paprikalang.site/rxjs.jpg" width="350"/>
+<img src="https://upic.paprikalang.site/rxjs.jpg" width="350"/>
 <img src="http://cyclejs.cn/img/cycle-nested-frontpage.svg" width="350"/>
 </div>	
 
