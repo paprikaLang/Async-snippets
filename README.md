@@ -208,7 +208,7 @@ describe('Counter', () => {
 
 <!--<img src="https://i.loli.net/2020/04/01/6X8aztKG75lojIi.jpg" width="500" />-->
 
-<img src="https://upic.paprikaLang.site/rxjs-flutter.jpg" width="500" />
+<img src="https://upic.paprikalang.site/rxjs-flutter.jpg" width="500" />
 
 &nbsp;
 
